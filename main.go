@@ -4,7 +4,6 @@ import (
 	"bytes"
 	_ "embed"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"strings"
@@ -15,10 +14,15 @@ var xslFile []byte
 
 func main() {
 	if len(os.Args) < 2 {
-		log.Fatalln("Specify XSD file")
+		fmt.Println("Specify schema file")
+		os.Exit(1)
 	}
-	params := make([]string, 0, 2+(len(os.Args)-2)*3)
-	if len(os.Args) > 2 {
+	if len(os.Args) < 3 {
+		fmt.Println("Specify output file")
+		os.Exit(1)
+	}
+	params := make([]string, 0, 3+(len(os.Args)-3)*3)
+	if len(os.Args) > 3 {
 		for _, p := range os.Args[2:] {
 			kv := strings.Split(p, "=")
 			if len(kv) == 2 {
@@ -26,17 +30,21 @@ func main() {
 			}
 		}
 	}
+	params = append(params, "-o")
+	params = append(params, os.Args[2])
 	params = append(params, "-")
 	params = append(params, os.Args[1])
 	cmd := exec.Command("xsltproc", params...)
 	cmd.Stdin = bytes.NewReader(xslFile)
-	goFile, err := cmd.Output()
+	out, err := cmd.Output()
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
-			log.Fatal(string(exitErr.Stderr))
+			fmt.Print(string(exitErr.Stderr))
+			os.Exit(1)
 		} else {
-			log.Fatal(err)
+			fmt.Println(err)
+			os.Exit(1)
 		}
 	}
-	fmt.Print(string(goFile))
+	fmt.Print(string(out))
 }
