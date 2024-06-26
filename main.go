@@ -29,7 +29,6 @@ func main() {
 	params = append(params, "-")
 	params = append(params, os.Args[1])
 	cmd := exec.Command("xsltproc", params...)
-	fmt.Println(cmd)
 	cmd.Stdin = bytes.NewReader(xslFile)
 	goFile, err := cmd.Output()
 	if err != nil {
