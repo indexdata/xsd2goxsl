@@ -45,6 +45,47 @@ You can also see rendered Go structs in the browser by prepending:
 
 to the XSD and opening the file in the browser, best by serving it with a local HTTP server like `python3 -m http.server` to avoid local security constraints. This works in Firefox but fails silently in Chrome, likely because of missing EXSLT support.
 
+# Use in a Go build
+
+This repo includes a simple Go wrapper over `xsltproc` which you can run with:
+
+```
+go run github.com/indexdata/xsd2goxsl <in.xsd> <out.go> <param-name=param-value>,...
+```
+
+e.g
+
+```
+go run github.com/indexdata/xsd2goxsl xsd/ncip_v2_02.xsd ncip/schema.go "qAttrImport=utils \"github.com/indexdata/go-utils/utils\"" qAttrType=utils.PrefixAttr dateTimeType=utils.XSDDateTime
+```
+
+This allows using it in a Go project during the build with `go generate`. E.g by adding a Go `xsd-gen.go` file to the project with:
+
+```
+package ncip
+
+//go:generate go  run github.com/indexdata/xsd2goxsl xsd/ncip_v2_02.xsd ncip/schema.go "qAttrImport=utils \"github.com/indexdata/go-utils/utils\"" qAttrType=utils.PrefixAttr dateTimeType=utils.XSDDateTime decimalType=utils.XSDDecimal
+```
+
+and running:
+
+```
+go generate
+```
+
+Additionally, you can add a disabled source file with an import for this project to force Go handling it as a dependency:
+
+```
+//go:build tools
+
+package tools
+
+//build-time toolchain dependencies
+import (
+	_ "github.com/indexdata/xsd2goxsl"
+)
+```
+
 # Test
 
 There are example XSDs and corresponding generated Go models under [./xsd](xsd/).
