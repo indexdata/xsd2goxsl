@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Test schema for testing xsd2go.xsl-->
+ 
+ <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns="http://xsd2go.xsl/family" targetNamespace="http://xsd2go.xsl/family" elementFormDefault="qualified" attributeFormDefault="qualified">
+	<xs:element name="family">
+		<xs:complexType>
+				<xs:choice>
+					<xs:element ref="father"/>
+					<xs:element ref="mother"/>
+					<xs:element name="children" maxOccurs="unbounded">
+						<xs:complexType>
+							<xs:sequence>
+								<xs:element name="child" type="person" minOccurs="0" maxOccurs="unbounded" />
+							</xs:sequence>
+						</xs:complexType>
+					</xs:element>
+					<xs:element name="favChild">
+						<xs:complexType>
+							<xs:sequence>
+								<xs:element name="favChild" type="person" />
+							</xs:sequence>
+						</xs:complexType>
+					</xs:element>
+					<xs:element name="grandma_mom" type="adult" minOccurs="0"/>
+					<xs:element name="grandpa_mom" type="adult" minOccurs="0"/>
+					<xs:element name="grandma_dad" type="adult" minOccurs="0"/>
+					<xs:element name="grandpa_dad" type="adult" minOccurs="0"/>
+					<xs:element name="incomeLevel">
+						<xs:simpleType>
+							<xs:restriction base="xs:string">
+								<xs:enumeration value="HIGH"></xs:enumeration>
+								<xs:enumeration value="MEDIUM"></xs:enumeration>
+								<xs:enumeration value="LOW"></xs:enumeration>
+							</xs:restriction>
+						</xs:simpleType>
+					</xs:element>
+				</xs:choice>
+			<xs:attribute name="name" type="xs:string" use="required"/>
+		</xs:complexType>
+	</xs:element>
+
+	<xs:element name="father" type="adult"/>
+	
+	<xs:element name="mother" type="adult"/>
+
+	<xs:complexType name="adult">
+		<xs:complexContent>
+			<xs:extension base="person">
+				<xs:sequence>
+					<xs:element name="drivingLicence" type="xs:boolean"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+
+	<xs:complexType name="person">
+		<xs:sequence>
+			<xs:element name="name" type="xs:string"/>
+			<xs:element name="surname" type="xs:string"/>
+			<xs:element name="age" type="xs:int"/>
+			<xs:element name="height" type="xs:int"/>
+			<xs:element name="gender" type="gender"/>
+			<xs:element name="interests" minOccurs="0" maxOccurs="unbounded" type="xs:string"/>
+			<xs:element name="favColor" minOccurs="0" type="xs:string"/>
+		</xs:sequence>
+	</xs:complexType>
+	
+	<xs:simpleType name="gender">
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="MALE"/>
+			<xs:enumeration value="FEMALE"/>
+		</xs:restriction>
+	</xs:simpleType>
+	
+	<!--some random checks-->
+	
+	<xs:complexType name="elemWithAttr">
+		<xs:simpleContent>
+			<xs:extension base="xs:string">
+				<xs:attribute name="attr" type="xs:string"/>
+			</xs:extension>
+		</xs:simpleContent>
+	</xs:complexType>
+	
+</xs:schema>

@@ -1,0 +1,6 @@
+.DS_Store
+.vscode
+/xsd2goxsl
+!xsd2goxsl/
+/coverage.out
+xsd/*_test/
