@@ -1,7 +1,6 @@
 GO ?= go
 GIT ?= git
 GOFMT ?= gofmt "-s"
-XSLT ?= xsltproc
 PACKAGES ?= $(shell $(GO) list ./...)
 GOFILES := $(shell find . -name "*.go")
 GOTOOLS=tools.go
@@ -17,9 +16,6 @@ all: $(MAIN_BINARY)
 
 $(MAIN_BINARY):  $(GOFILES)
 	$(GO) build -v -o $(MAIN_BINARY) ./$(MAIN_PACKAGE)
-
-check: generate
-	$(GO) test -v -cover -coverpkg=./... -coverprofile=$(COVERAGE) ./...
 
 run: all
 	$(GO) run -buildvcs=true ./$(MAIN_PACKAGE)
@@ -38,11 +34,11 @@ clean:
 	rm -f $(COVERAGE)
 	rm -rf $(XSD_TEST_DIR)/*_test/
 
-check-xsd: $(XSD2GOXSL) $(XSD_TEST_DIR)/*.xsd
+check: $(XSD2GOXSL) $(GOFILES) $(XSD_TEST_DIR)/*.xsd
 	$(foreach file, $(wildcard $(XSD_TEST_DIR)/*.xsd), rm -rf $(file)_test;)
 	$(foreach file, $(wildcard $(XSD_TEST_DIR)/*.xsd), mkdir $(file)_test;)
-	$(foreach file, $(wildcard $(XSD_TEST_DIR)/*.xsd), $(XSLT) --stringparam qAttrImport 'utils "github.com/indexdata/go-utils/utils"' \
-	--stringparam qAttrType "utils.PrefixAttr" --stringparam buildtag checkxsd $(XSD2GOXSL) $(file) > $(file)_test/schema.go;)
+	$(foreach file, $(wildcard $(XSD_TEST_DIR)/*.xsd), $(GO) run $(MAIN_PACKAGE) $(file) $(file)_test/schema.go \
+	"qAttrImport=utils \"github.com/indexdata/go-utils/utils\"" qAttrType=utils.PrefixAttr buildtag=checkxsd;)
 	$(foreach file, $(wildcard $(XSD_TEST_DIR)/*.xsd), diff $(file)_test/schema.go $(file).out || exit;)
 	$(foreach file, $(wildcard $(XSD_TEST_DIR)/*.xsd), $(GO) vet -tags checkxsd $(file)_test/schema.go || exit;)
 	$(foreach file, $(wildcard $(XSD_TEST_DIR)/*.xsd), $(GO) build -tags checkxsd $(file)_test/schema.go || exit;)
