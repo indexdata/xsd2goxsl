@@ -36,6 +36,7 @@ The following parameters are supported (`--stringparam` in `xsltproc`):
 * `dateType` data type to use for XSD date, defaults to `string`
 * `decimalType` data type to use for XSD decimal, defaults to `float64`
 * `typeImports` comma-separated list of imports for additional type definitions used for date/time and decimal types
+* `json` should json tags be generated as well, default `no`
 
 You can also see rendered Go structs in the browser by prepending:
 
