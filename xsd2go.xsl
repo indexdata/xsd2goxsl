@@ -769,7 +769,7 @@
     <xsl:variable name="uppercase" select="'ABCDEFGHIJKLMNOPQRSTUVWXYZ'" />
     <xsl:for-each select="str:tokenize($normName, '_- ')">
       <xsl:value-of select="translate(substring(.,1,1),$lowercase,$uppercase)"/>
-      <xsl:value-of select="substring(.,2)"/>
+      <xsl:value-of select="translate(substring(.,2), '.', '_')"/>
     </xsl:for-each>
   </xsl:template>
 
