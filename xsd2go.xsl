@@ -611,6 +611,18 @@
     </xsl:choose>
   </xsl:template>
 
+  <xsl:template match="xs:any">
+    <xsl:param name="name"/>
+    <xsl:value-of select="$indent"/>
+    <xsl:call-template name="convert-name">
+      <xsl:with-param name="name" select="$name"/>
+    </xsl:call-template>
+    <xsl:text> []byte</xsl:text>
+    <xsl:value-of select="$indent"/>
+    <xsl:text> `xml:",innerxml"`</xsl:text>
+    <xsl:value-of select="$break"/>
+  </xsl:template>
+
   <xsl:template match="xs:enumeration">
     <xsl:param name="normName" />
     <xsl:variable name="constType">
