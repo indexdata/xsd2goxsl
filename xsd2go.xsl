@@ -9,6 +9,7 @@
   <xsl:strip-space elements="*" />
   <xsl:param name="indent" select="'  '"/>
   <xsl:param name="break" select="'&#10;'"/>
+  <xsl:param name="namespaced" select="'no'"/>
   <xsl:param name="attributeForm" select="/xs:schema/@attributeFormDefault"/>
   <xsl:param name="targetNamespace" select="/xs:schema/@targetNamespace"/>
   <xsl:param name="package" select="str:tokenize(str:tokenize($targetNamespace, '/')[last()],'.')[1]"/>
@@ -107,6 +108,10 @@
     <xsl:value-of select="$break"/>
     <xsl:value-of select="$indent"/>
     <xsl:text>XMLName xml.Name `xml:"</xsl:text>
+    <xsl:if test="$namespaced = 'yes'">
+      <xsl:value-of select="$targetNamespace"/>
+      <xsl:text> </xsl:text>
+    </xsl:if>
     <xsl:value-of select="$name"/>
     <xsl:if test="$json = 'yes'">
       <xsl:text>" json:"-</xsl:text>
@@ -291,6 +296,10 @@
       <xsl:with-param name="type" select="'attribute'"/>
     </xsl:call-template>
     <xsl:text> `xml:"</xsl:text>
+    <xsl:if test="$namespaced = 'yes' and $attributeForm = 'qualified'">
+      <xsl:value-of select="$targetNamespace"/>
+      <xsl:text> </xsl:text>
+    </xsl:if>
     <xsl:value-of select="$name"/>
     <xsl:text>,attr</xsl:text>
     <xsl:if test="$omitempty = 'yes' and $ptr = '*'">
@@ -374,6 +383,10 @@
         <xsl:value-of select="$level"/>
         <xsl:value-of select="$indent"/>
         <xsl:text>XMLName xml.Name `xml:"</xsl:text>
+        <xsl:if test="$namespaced = 'yes'">
+          <xsl:value-of select="$targetNamespace"/>
+          <xsl:text> </xsl:text>
+        </xsl:if>
         <xsl:value-of select="$name"/>
         <xsl:if test="$json = 'yes'">
           <xsl:text>" json:"-</xsl:text>
