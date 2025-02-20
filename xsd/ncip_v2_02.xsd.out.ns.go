@@ -2235,7 +2235,7 @@ type EnumerationValue struct {
 
 type Ext struct {
   XMLName xml.Name `xml:"http://www.niso.org/2008/ncip Ext"`
-  Ext []byte   `xml:",innerxml"`
+  Content []byte   `xml:",innerxml,omitempty"`
 }
 
 type FiscalActionType struct {

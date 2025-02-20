@@ -627,14 +627,20 @@
   </xsl:template>
 
   <xsl:template match="xs:any">
-    <xsl:param name="name"/>
     <xsl:value-of select="$indent"/>
-    <xsl:call-template name="convert-name">
-      <xsl:with-param name="name" select="$name"/>
-    </xsl:call-template>
-    <xsl:text> []byte</xsl:text>
+    <xsl:text>Content []byte</xsl:text>
     <xsl:value-of select="$indent"/>
-    <xsl:text> `xml:",innerxml"`</xsl:text>
+    <xsl:text> `xml:",innerxml</xsl:text>
+    <xsl:if test="$omitempty = 'yes'">
+        <xsl:text>,omitempty</xsl:text>
+      </xsl:if>
+    <xsl:if test="$json = 'yes'">
+      <xsl:text>" json:"#content</xsl:text>
+      <xsl:if test="$omitempty = 'yes'">
+        <xsl:text>,omitempty</xsl:text>
+      </xsl:if>
+    </xsl:if>
+    <xsl:text>"`</xsl:text>
     <xsl:value-of select="$break"/>
   </xsl:template>
 
