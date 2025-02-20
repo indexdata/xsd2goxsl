@@ -628,7 +628,7 @@
 
   <xsl:template match="xs:any">
     <xsl:value-of select="$indent"/>
-    <xsl:text>Content []byte</xsl:text>
+    <xsl:text>XMLContent []byte</xsl:text>
     <xsl:value-of select="$indent"/>
     <xsl:text> `xml:",innerxml</xsl:text>
     <xsl:if test="$omitempty = 'yes'">
