@@ -24,6 +24,7 @@ The following parameters are supported (`--stringparam` in `xsltproc`):
 * `break` line break char, default `&#10;` or CR (carriage return)
 * `debug` write out schema types in comments, default 'no'
 * `buildtag` //go:build tags for the generated file, default empty
+* `namespaced` if `yes` xml.Name and qualified attribute tags will use the target namespace, default `no`
 * `targetNamespace` defaults to `/xs:schema/@targetNamespace`
 * `package` Go package name, defaults to `str:tokenize(str:tokenize($targetNamespace, '/')[last()],'.')[1]`
 * `omitempty` whether to set _omitempty_ modifier on field tags for optional and repeating elements, default `yes`
