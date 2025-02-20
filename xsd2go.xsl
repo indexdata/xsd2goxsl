@@ -67,6 +67,7 @@
     <xsl:value-of select="$break"/>
     <xsl:value-of select="$break"/>
     <xsl:apply-templates mode="global"/>
+    <!-- hoist all nested non-scalar types and enums to the top level -->
     <xsl:for-each select="//xs:element[(@minOccurs!='1' or @maxOccurs!='1') and (xs:complexType or xs:simpleType)
                                         or (not(parent::xs:schema) and xs:simpleType/xs:restriction/xs:enumeration)]">
       <xsl:call-template name="debug">
@@ -347,7 +348,7 @@
     <xsl:value-of select="$level"/>
     <xsl:choose>
       <xsl:when test="$level != '' and $parentPtr != ''">
-        <!--hoisted type-->
+        <!-- referencing a hoisted type-->
         <xsl:call-template name="convert-name">
           <xsl:with-param name="name" select="$name"/>
         </xsl:call-template>
@@ -372,6 +373,7 @@
         <xsl:value-of select="$break"/>
       </xsl:when>
       <xsl:otherwise>
+        <!-- nesting or hoisting a struct-->
         <xsl:if test="$level = ''">
           <xsl:text>type </xsl:text>
         </xsl:if>
@@ -383,7 +385,7 @@
         <xsl:value-of select="$level"/>
         <xsl:value-of select="$indent"/>
         <xsl:text>XMLName xml.Name `xml:"</xsl:text>
-        <xsl:if test="$namespaced = 'yes'">
+        <xsl:if test="$level = '' and $namespaced = 'yes'">
           <xsl:value-of select="$targetNamespace"/>
           <xsl:text> </xsl:text>
         </xsl:if>

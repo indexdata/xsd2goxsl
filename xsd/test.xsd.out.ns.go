@@ -16,7 +16,7 @@ type Family struct {
   Mother *Adult `xml:"mother,omitempty"`
   Children []Children `xml:"children,omitempty"`
   FavChild struct {
-    XMLName xml.Name `xml:"http://xsd2go.xsl/family favChild"`
+    XMLName xml.Name `xml:"favChild"`
     FavChild Person `xml:"favChild"`
   }
   GrandmaMom *Adult `xml:"grandma_mom,omitempty"`
