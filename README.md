@@ -6,7 +6,7 @@ popular are:
 *  global and local `element` definitions and declarations, local definitions are hoisted to the package level
 * `attribute`
 * `simpleType`, `complexType` and `simpleContent`, `complexContent`
-* `sequence` and `choice`
+* `sequence`, `choice` and `any`
 * `extension`, `restriction` and `enumeration`
 * `annotation` and `documentation`
 
