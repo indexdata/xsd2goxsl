@@ -658,14 +658,8 @@
     <xsl:text>XMLContent []byte</xsl:text>
     <xsl:value-of select="$indent"/>
     <xsl:text> `xml:",innerxml</xsl:text>
-    <xsl:if test="$omitempty = 'yes'">
-        <xsl:text>,omitempty</xsl:text>
-      </xsl:if>
     <xsl:if test="$json = 'yes'">
       <xsl:text>" json:"#content</xsl:text>
-      <xsl:if test="$omitempty = 'yes'">
-        <xsl:text>,omitempty</xsl:text>
-      </xsl:if>
     </xsl:if>
     <xsl:text>"`</xsl:text>
     <xsl:value-of select="$break"/>
