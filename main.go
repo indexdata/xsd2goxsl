@@ -24,7 +24,7 @@ func main() {
 	params := make([]string, 0, 3+(len(os.Args)-3)*3)
 	if len(os.Args) > 3 {
 		for _, p := range os.Args[2:] {
-			kv := strings.Split(p, "=")
+			kv := strings.SplitN(p, "=", 2)
 			if len(kv) == 2 {
 				params = append(params, "--stringparam", kv[0], kv[1])
 			}

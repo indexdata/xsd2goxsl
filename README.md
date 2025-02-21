@@ -9,6 +9,7 @@ popular are:
 * `sequence`, `choice` and `any`
 * `extension`, `restriction` and `enumeration`
 * `annotation` and `documentation`
+* `import`
 
 # Use
 
@@ -20,24 +21,25 @@ xsltproc xsd2go.xsl some.xsd > some.go
 
 The following parameters are supported (`--stringparam` in `xsltproc`):
 
-* `indent` indent string, default 2 spaces
-* `break` line break char, default `&#10;` or CR (carriage return)
-* `debug` write out schema types in comments, default 'no'
 * `buildtag` //go:build tags for the generated file, default empty
 * `namespaced` if `yes` xml.Name and qualified attribute tags will use the target namespace, default `no`
-* `targetNamespace` defaults to `/xs:schema/@targetNamespace`
+* `namespaceImports` comma-separated list of `namespace-uri=package-path` mappings to use when converting `xs:import` elements to Go package imports
 * `package` Go package name, defaults to `str:tokenize(str:tokenize($targetNamespace, '/')[last()],'.')[1]`
 * `omitempty` whether to set _omitempty_ modifier on field tags for optional and repeating elements, default `yes`
-* `xmlns_xsd` defaults to `http://www.w3.org/2001/XMLSchema`
-* `attributeForm` _qualified_ or _unqualified_, defaults to `xs:schema/@attributeFormDefault`
-* `qAttrType` data type to use for qualified attributes, defaults to `string` which is non-qualified, see [PrefixAttr](https://github.com/indexdata/edge-slnp/blob/xsd-2-go-xsl/utils/xml.go)
-* `qAttrImport` import for the qualified attributes type package, e.g `xmlext "github.com/indexdata/edge-slnp/utils"`. Note that this import is applied only when `attributeForm` is _qualified_
+* `json` should json tags be generated as well, default `no`
+* `typeImports` comma-separated list of imports for additional type definitions used for date/time and decimal types
 * `dateTimeType` data type to use for XSD dateTime, defaults to `string`
 * `timeType` data type to use for XSD time, defaults to `string`
 * `dateType` data type to use for XSD date, defaults to `string`
 * `decimalType` data type to use for XSD decimal, defaults to `float64`
-* `typeImports` comma-separated list of imports for additional type definitions used for date/time and decimal types
-* `json` should json tags be generated as well, default `no`
+* `qAttrType` data type to use for qualified attributes, defaults to `string` which is non-qualified, see [PrefixAttr](https://github.com/indexdata/edge-slnp/blob/xsd-2-go-xsl/utils/xml.go)
+* `qAttrImport` import for the qualified attributes type package, e.g `xmlext "github.com/indexdata/edge-slnp/utils"`. Note that this import is applied only when `attributeForm` is _qualified_
+* `indent` indent string, default 2 spaces
+* `break` line break char, default `&#10;` or CR (carriage return)
+* `debug` write out schema types in comments, default 'no'
+* `targetNamespace` defaults to `/xs:schema/@targetNamespace`
+* `attributeForm` _qualified_ or _unqualified_, defaults to `xs:schema/@attributeFormDefault`
+* `xmlns_xsd` defaults to `http://www.w3.org/2001/XMLSchema`
 
 You can also see rendered Go structs in the browser by prepending:
 

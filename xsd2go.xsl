@@ -10,6 +10,7 @@
   <xsl:param name="indent" select="'  '"/>
   <xsl:param name="break" select="'&#10;'"/>
   <xsl:param name="namespaced" select="'no'"/>
+  <xsl:param name="namespaceImports" select="''"/>
   <xsl:param name="attributeForm" select="/xs:schema/@attributeFormDefault"/>
   <xsl:param name="targetNamespace" select="/xs:schema/@targetNamespace"/>
   <xsl:param name="package" select="str:tokenize(str:tokenize($targetNamespace, '/')[last()],'.')[1]"/>
@@ -63,6 +64,11 @@
       <xsl:value-of select="$break"/>
     </xsl:if>
     <xsl:call-template name="type-imports"/>
+    <xsl:for-each select="xs:import">
+      <xsl:call-template name="namespace-import">
+        <xsl:with-param name="namespace" select="@namespace"/>
+      </xsl:call-template>
+    </xsl:for-each>
     <xsl:text>)</xsl:text>
     <xsl:value-of select="$break"/>
     <xsl:value-of select="$break"/>
@@ -83,8 +89,29 @@
   <xsl:template name="type-imports">
     <xsl:for-each select="str:tokenize($typeImports, ',')">
       <xsl:value-of select="$indent"/>
-      <xsl:value-of select="."/>
+      <xsl:value-of select="normalize-space(.)"/>
       <xsl:value-of select="$break"/>
+    </xsl:for-each>
+  </xsl:template>
+
+  <xsl:template name="namespace-import">
+    <xsl:param name="namespace" />
+    <xsl:variable name="prefix">
+      <xsl:call-template name="get-ns-prefix">
+        <xsl:with-param name="uri" select="$namespace"/>
+      </xsl:call-template>
+    </xsl:variable>
+    <xsl:for-each select="str:tokenize($namespaceImports, ',')">
+      <xsl:variable name="ns" select="normalize-space(substring-before(.,'='))"/>
+      <xsl:variable name="pkg" select="normalize-space(substring-after(.,'='))"/>
+      <xsl:if test="$namespace = $ns">
+        <xsl:value-of select="$indent"/>
+        <xsl:value-of select="$prefix" />
+        <xsl:text> "</xsl:text>
+        <xsl:value-of select="$pkg"/>
+        <xsl:text>"</xsl:text>
+        <xsl:value-of select="$break"/>
+      </xsl:if>
     </xsl:for-each>
   </xsl:template>
 
@@ -218,7 +245,7 @@
               <xsl:value-of select="$refType"/>
             </xsl:when>
             <xsl:otherwise>
-              <xsl:value-of select="$locRef"/>
+              <xsl:value-of select="$ref"/>
             </xsl:otherwise>
           </xsl:choose>
         </xsl:variable>
@@ -780,6 +807,11 @@
     <xsl:value-of select="namespace::node()[local-name() = $prefix]"/>
   </xsl:template>
 
+  <xsl:template name="get-ns-prefix">
+    <xsl:param name="uri"/>
+    <xsl:value-of select="local-name(namespace::node()[. = $uri])"/>
+  </xsl:template>
+
   <xsl:template name="convert-name">
     <xsl:param name="name"/>
     <xsl:variable name="normName">
@@ -1023,6 +1055,10 @@
       </xsl:when>
       <xsl:otherwise>
         <xsl:value-of select="$ptr"/>
+        <xsl:if test="$ns != $targetNamespace and contains($namespaceImports,$ns)">
+          <xsl:value-of select="substring-before($type,':')"/>
+          <xsl:text>.</xsl:text>
+        </xsl:if>
         <xsl:call-template name="convert-name">
           <xsl:with-param name="name" select="$t"></xsl:with-param>
         </xsl:call-template>
