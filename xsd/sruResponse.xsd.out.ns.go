@@ -51,7 +51,7 @@ type SearchRetrieveResponseDefinition struct {
   //  ****
   // the following are new in version 2. They may not be used in version 1.2 or earlier.
   //                  
-  XMLContent []byte   `xml:",innerxml,omitempty"`
+  XMLContent []byte   `xml:",innerxml"`
   ResultSetTTL uint64 `xml:"resultSetTTL,omitempty"`
   //                       resultSetTTL replaces resultSetIdleTime in version 2.0.
   ResultCountPrecision []string `xml:"resultCountPrecision,omitempty"`
@@ -104,7 +104,7 @@ type EchoedSearchRetrieveRequestDefinition struct {
 }
 
 type ExtensionDefinition struct {
-  XMLContent []byte   `xml:",innerxml,omitempty"`
+  XMLContent []byte   `xml:",innerxml"`
 }
 
 type RecordDefinition struct {
@@ -118,7 +118,7 @@ type RecordDefinition struct {
   RecordData StringOrXmlFragmentDefinition `xml:"recordData"`
   RecordPosition uint64 `xml:"recordPosition,omitempty"`
   ExtraRecordData *ExtensionDefinition `xml:"extraRecordData,omitempty"`
-  XMLContent []byte   `xml:",innerxml,omitempty"`
+  XMLContent []byte   `xml:",innerxml"`
 }
 
 type RecordXMLEscapingDefinition string
@@ -144,7 +144,7 @@ type SortKeyDefinition struct {
 }
 
 type StringOrXmlFragmentDefinition struct {
-  XMLContent []byte   `xml:",innerxml,omitempty"`
+  XMLContent []byte   `xml:",innerxml"`
 }
 
 type XSortKeysDefinition struct {

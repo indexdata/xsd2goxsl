@@ -51,7 +51,7 @@ type SearchRetrieveResponseDefinition struct {
   //  ****
   // the following are new in version 2. They may not be used in version 1.2 or earlier.
   //                  
-  XMLContent []byte   `xml:",innerxml,omitempty" json:"#content,omitempty"`
+  XMLContent []byte   `xml:",innerxml" json:"#content"`
   ResultSetTTL uint64 `xml:"resultSetTTL,omitempty" json:"resultSetTTL,omitempty"`
   //                       resultSetTTL replaces resultSetIdleTime in version 2.0.
   ResultCountPrecision []string `xml:"resultCountPrecision,omitempty" json:"resultCountPrecision,omitempty"`
@@ -104,7 +104,7 @@ type EchoedSearchRetrieveRequestDefinition struct {
 }
 
 type ExtensionDefinition struct {
-  XMLContent []byte   `xml:",innerxml,omitempty" json:"#content,omitempty"`
+  XMLContent []byte   `xml:",innerxml" json:"#content"`
 }
 
 type RecordDefinition struct {
@@ -118,7 +118,7 @@ type RecordDefinition struct {
   RecordData StringOrXmlFragmentDefinition `xml:"recordData" json:"recordData"`
   RecordPosition uint64 `xml:"recordPosition,omitempty" json:"recordPosition,omitempty"`
   ExtraRecordData *ExtensionDefinition `xml:"extraRecordData,omitempty" json:"extraRecordData,omitempty"`
-  XMLContent []byte   `xml:",innerxml,omitempty" json:"#content,omitempty"`
+  XMLContent []byte   `xml:",innerxml" json:"#content"`
 }
 
 type RecordXMLEscapingDefinition string
@@ -144,7 +144,7 @@ type SortKeyDefinition struct {
 }
 
 type StringOrXmlFragmentDefinition struct {
-  XMLContent []byte   `xml:",innerxml,omitempty" json:"#content,omitempty"`
+  XMLContent []byte   `xml:",innerxml" json:"#content"`
 }
 
 type XSortKeysDefinition struct {
