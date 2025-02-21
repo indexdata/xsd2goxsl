@@ -2235,7 +2235,7 @@ type EnumerationValue struct {
 
 type Ext struct {
   XMLName xml.Name `xml:"Ext" json:"-"`
-  XMLContent []byte   `xml:",innerxml,omitempty" json:"#content,omitempty"`
+  XMLContent []byte   `xml:",innerxml" json:"#content"`
 }
 
 type FiscalActionType struct {
