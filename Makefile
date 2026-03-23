@@ -65,3 +65,9 @@ check: $(XSD2GOXSL) $(GOFILES) $(XSD_TEST_DIR)/*.xsd
 	$(foreach file, $(wildcard $(XSD_TEST_DIR)/*.xsd), diff -u $(file)_test/schema.go $(file).out.ns.go || exit;)
 	$(foreach file, $(wildcard $(XSD_TEST_DIR)/*.xsd), $(GO) vet -tags checkxsd $(file)_test/schema.go || exit;)
 	$(foreach file, $(wildcard $(XSD_TEST_DIR)/*.xsd), $(GO) build -tags checkxsd $(file)_test/schema.go || exit;)
+	rm -rf $(XSD_TEST_DIR)/ISO-18626-2021-2.xsd_test
+	mkdir $(XSD_TEST_DIR)/ISO-18626-2021-2.xsd_test
+	$(GO) run $(MAIN_PACKAGE) $(XSD_TEST_DIR)/ISO-18626-2021-2.xsd $(XSD_TEST_DIR)/ISO-18626-2021-2.xsd_test/schema.go "$(nsImports)" ${qAttr} buildtag=checkxsd validate=yes
+	diff -u $(XSD_TEST_DIR)/ISO-18626-2021-2.xsd_test/schema.go $(XSD_TEST_DIR)/ISO-18626-2021-2.xsd.out.validate.go || exit
+	$(GO) vet -tags checkxsd $(XSD_TEST_DIR)/ISO-18626-2021-2.xsd_test/schema.go || exit
+	$(GO) build -tags checkxsd $(XSD_TEST_DIR)/ISO-18626-2021-2.xsd_test/schema.go || exit
