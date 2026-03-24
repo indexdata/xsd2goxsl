@@ -203,7 +203,7 @@
         <xsl:with-param name="minOccurs" select="@minOccurs"/>
         <xsl:with-param name="maxOccurs" select="@maxOccurs"/>
         <xsl:with-param name="container" select="'element'"/>
-        </xsl:call-template>
+      </xsl:call-template>
     </xsl:variable>
     <xsl:apply-templates>
       <xsl:with-param name="name" select="@name"/>
@@ -222,7 +222,7 @@
         <xsl:with-param name="maxOccurs" select="@maxOccurs"/>
         <xsl:with-param name="parentPtr" select="$parentPtr"/>
         <xsl:with-param name="container" select="'element'"/>
-        </xsl:call-template>
+      </xsl:call-template>
     </xsl:variable>
     <xsl:variable name="ref" select="@ref" />
     <xsl:variable name="name" select="@name" />
@@ -467,7 +467,6 @@
   </xsl:template>
 
   <xsl:template match="xs:simpleType" mode="global">
-    <xsl:variable name="name" select="@name" />
     <xsl:call-template name="debug">
       <xsl:with-param name="text" select="'SimpleType'"/>
     </xsl:call-template>
@@ -546,11 +545,11 @@
     <xsl:value-of select="$normType"/>
     <xsl:if test="$content = 'simple'">
       <xsl:text> `xml:",chardata</xsl:text>
-          <xsl:if test="$json = 'yes'">
-      <xsl:text>" json:"#text</xsl:text>
-      <xsl:if test="$omitempty = 'yes'">
-        <xsl:text>,omitempty</xsl:text>
-      </xsl:if>
+      <xsl:if test="$json = 'yes'">
+        <xsl:text>" json:"#text</xsl:text>
+        <xsl:if test="$omitempty = 'yes'">
+          <xsl:text>,omitempty</xsl:text>
+        </xsl:if>
       </xsl:if>
       <xsl:text>"`</xsl:text>
     </xsl:if>
@@ -656,10 +655,9 @@
   </xsl:template>
 
   <xsl:template match="xs:any">
-    <xsl:value-of select="$indent"/>
-    <xsl:text>XMLContent []byte</xsl:text>
-    <xsl:value-of select="$indent"/>
-    <xsl:text> `xml:",innerxml</xsl:text>
+    <xsl:param name="level" select="''"/>
+    <xsl:value-of select="$level"/>
+    <xsl:text>XMLContent []byte `xml:",innerxml</xsl:text>
     <xsl:if test="$json = 'yes'">
       <xsl:text>" json:"#content</xsl:text>
     </xsl:if>
@@ -1197,14 +1195,9 @@
   <xsl:template name="convert-name">
     <xsl:param name="name"/>
     <xsl:variable name="normName">
-      <xsl:choose>
-        <xsl:when test="contains($name,':')">
-          <xsl:value-of select="substring-after($name,':')"/>
-        </xsl:when>
-        <xsl:otherwise>
-          <xsl:value-of select="$name"/>
-        </xsl:otherwise>
-      </xsl:choose>
+      <xsl:call-template name="strip-prefix">
+        <xsl:with-param name="name" select="$name"/>
+      </xsl:call-template>
     </xsl:variable>
     <xsl:variable name="lowercase" select="'abcdefghijklmnopqrstuvwxyz'" />
     <xsl:variable name="uppercase" select="'ABCDEFGHIJKLMNOPQRSTUVWXYZ'" />
@@ -1228,14 +1221,9 @@
       </xsl:call-template>
     </xsl:variable>
     <xsl:variable name="t">
-      <xsl:choose>
-        <xsl:when test="contains($type,':')">
-          <xsl:value-of select="substring-after($type,':')"/>
-        </xsl:when>
-        <xsl:otherwise>
-          <xsl:value-of select="$type"/>
-        </xsl:otherwise>
-      </xsl:choose>
+      <xsl:call-template name="strip-prefix">
+        <xsl:with-param name="name" select="$type"/>
+      </xsl:call-template>
     </xsl:variable>
     <xsl:variable name="stringLikeBuiltin">
       <xsl:call-template name="is-string-like-builtin-type">

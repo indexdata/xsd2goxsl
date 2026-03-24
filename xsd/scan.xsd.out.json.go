@@ -43,7 +43,7 @@ type EchoedScanRequestDefinition struct {
 }
 
 type ExtraDataDefinition struct {
-  XMLContent []byte   `xml:",innerxml" json:"#content"`
+  XMLContent []byte `xml:",innerxml" json:"#content"`
 }
 
 type TermDefinition struct {
