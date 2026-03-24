@@ -22,6 +22,12 @@ func TestValidateTags(t *testing.T) {
       <xs:enumeration value="DONE"/>
     </xs:restriction>
   </xs:simpleType>
+  <xs:simpleType name="label">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="loaned items"/>
+      <xs:enumeration value="requested items"/>
+    </xs:restriction>
+  </xs:simpleType>
   <xs:complexType name="child">
     <xs:sequence>
       <xs:element name="code" type="xs:string"/>
@@ -36,6 +42,8 @@ func TestValidateTags(t *testing.T) {
         <xs:element name="nickname" type="xs:string" minOccurs="0"/>
         <xs:element name="status" type="state" minOccurs="0"/>
         <xs:element name="states" type="state" minOccurs="0" maxOccurs="3"/>
+        <xs:element name="requiredStates" type="state" maxOccurs="3"/>
+        <xs:element name="labels" type="label" minOccurs="0" maxOccurs="3"/>
         <xs:element name="child" type="child"/>
       </xs:sequence>
       <xs:attribute name="id" type="xs:string" use="required"/>
@@ -72,6 +80,8 @@ func TestValidateTags(t *testing.T) {
 	assertContains(t, out, `Nickname string `+"`"+`xml:"nickname,omitempty"`+"`")
 	assertContains(t, out, `Status *State `+"`"+`xml:"status,omitempty" validate:"omitempty,oneof=NEW DONE"`+"`")
 	assertContains(t, out, `States []State `+"`"+`xml:"states,omitempty" validate:"omitempty,max=3,dive,oneof=NEW DONE"`+"`")
+	assertContains(t, out, `RequiredStates []State `+"`"+`xml:"requiredStates,omitempty" validate:"min=1,max=3,dive,oneof=NEW DONE"`+"`")
+	assertContains(t, out, `Labels []Label `+"`"+`xml:"labels,omitempty" validate:"omitempty,max=3,dive,oneof='loaned items' 'requested items'"`+"`")
 	assertContains(t, out, `Child Child `+"`"+`xml:"child"`+"`")
 	assertContains(t, out, `Id string `+"`"+`xml:"id,attr"`+"`")
 	assertContains(t, out, `Count int `+"`"+`xml:"count"`+"`")

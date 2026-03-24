@@ -838,26 +838,56 @@
     <xsl:variable name="minOccurs">
       <xsl:choose>
         <xsl:when test="self::xs:element">
-          <xsl:value-of select="@minOccurs"/>
+          <xsl:choose>
+            <xsl:when test="string(@minOccurs) != ''">
+              <xsl:value-of select="@minOccurs"/>
+            </xsl:when>
+            <xsl:otherwise>1</xsl:otherwise>
+          </xsl:choose>
         </xsl:when>
         <xsl:when test="self::xs:complexType">
-          <xsl:value-of select="parent::xs:element/@minOccurs"/>
+          <xsl:choose>
+            <xsl:when test="string(parent::xs:element/@minOccurs) != ''">
+              <xsl:value-of select="parent::xs:element/@minOccurs"/>
+            </xsl:when>
+            <xsl:otherwise>1</xsl:otherwise>
+          </xsl:choose>
         </xsl:when>
         <xsl:when test="self::xs:restriction">
-          <xsl:value-of select="ancestor::xs:element[1]/@minOccurs"/>
+          <xsl:choose>
+            <xsl:when test="string(ancestor::xs:element[1]/@minOccurs) != ''">
+              <xsl:value-of select="ancestor::xs:element[1]/@minOccurs"/>
+            </xsl:when>
+            <xsl:otherwise>1</xsl:otherwise>
+          </xsl:choose>
         </xsl:when>
       </xsl:choose>
     </xsl:variable>
     <xsl:variable name="maxOccurs">
       <xsl:choose>
         <xsl:when test="self::xs:element">
-          <xsl:value-of select="@maxOccurs"/>
+          <xsl:choose>
+            <xsl:when test="string(@maxOccurs) != ''">
+              <xsl:value-of select="@maxOccurs"/>
+            </xsl:when>
+            <xsl:otherwise>1</xsl:otherwise>
+          </xsl:choose>
         </xsl:when>
         <xsl:when test="self::xs:complexType">
-          <xsl:value-of select="parent::xs:element/@maxOccurs"/>
+          <xsl:choose>
+            <xsl:when test="string(parent::xs:element/@maxOccurs) != ''">
+              <xsl:value-of select="parent::xs:element/@maxOccurs"/>
+            </xsl:when>
+            <xsl:otherwise>1</xsl:otherwise>
+          </xsl:choose>
         </xsl:when>
         <xsl:when test="self::xs:restriction">
-          <xsl:value-of select="ancestor::xs:element[1]/@maxOccurs"/>
+          <xsl:choose>
+            <xsl:when test="string(ancestor::xs:element[1]/@maxOccurs) != ''">
+              <xsl:value-of select="ancestor::xs:element[1]/@maxOccurs"/>
+            </xsl:when>
+            <xsl:otherwise>1</xsl:otherwise>
+          </xsl:choose>
         </xsl:when>
       </xsl:choose>
     </xsl:variable>
@@ -973,7 +1003,9 @@
             <xsl:if test="position() &gt; 1">
               <xsl:text> </xsl:text>
             </xsl:if>
-            <xsl:value-of select="@value"/>
+            <xsl:call-template name="emit-enum-value">
+              <xsl:with-param name="value" select="@value"/>
+            </xsl:call-template>
           </xsl:for-each>
         </xsl:when>
         <xsl:when test="self::xs:restriction and xs:enumeration">
@@ -981,7 +1013,9 @@
             <xsl:if test="position() &gt; 1">
               <xsl:text> </xsl:text>
             </xsl:if>
-            <xsl:value-of select="@value"/>
+            <xsl:call-template name="emit-enum-value">
+              <xsl:with-param name="value" select="@value"/>
+            </xsl:call-template>
           </xsl:for-each>
         </xsl:when>
         <xsl:when test="$type != '' and key('simpleTypeByName', $type)/xs:restriction/xs:enumeration">
@@ -989,7 +1023,9 @@
             <xsl:if test="position() &gt; 1">
               <xsl:text> </xsl:text>
             </xsl:if>
-            <xsl:value-of select="@value"/>
+            <xsl:call-template name="emit-enum-value">
+              <xsl:with-param name="value" select="@value"/>
+            </xsl:call-template>
           </xsl:for-each>
         </xsl:when>
       </xsl:choose>
@@ -998,6 +1034,20 @@
       <xsl:text>oneof=</xsl:text>
       <xsl:value-of select="string($enumValues)"/>
     </xsl:if>
+  </xsl:template>
+
+  <xsl:template name="emit-enum-value">
+    <xsl:param name="value"/>
+    <xsl:choose>
+      <xsl:when test="contains($value, ' ') or contains($value, '&#x9;') or contains($value, '&#xA;') or contains($value, '&#xD;')">
+        <xsl:text>'</xsl:text>
+        <xsl:value-of select="$value"/>
+        <xsl:text>'</xsl:text>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:value-of select="$value"/>
+      </xsl:otherwise>
+    </xsl:choose>
   </xsl:template>
 
   <xsl:template name="is-string-like-scalar">

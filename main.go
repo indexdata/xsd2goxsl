@@ -42,7 +42,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 }
 
 func buildParams(inputFile, outputFile string, rawParams []string) []string {
-	params := make([]string, 0, 3+len(rawParams)*3)
+	params := make([]string, 0, 4+len(rawParams)*3)
 	for _, p := range rawParams {
 		kv := strings.SplitN(p, "=", 2)
 		if len(kv) == 2 {
