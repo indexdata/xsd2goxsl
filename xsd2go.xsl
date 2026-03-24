@@ -3,7 +3,8 @@
     version="1.0"
     xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
     xmlns:xs="http://www.w3.org/2001/XMLSchema"
-    xmlns:str="http://exslt.org/strings">
+    xmlns:str="http://exslt.org/strings"
+    xmlns:exsl="http://exslt.org/common">
 
   <xsl:output method="text" encoding="UTF-8"/>
   <xsl:strip-space elements="*" />
@@ -129,8 +130,8 @@
 
   <!-- global elem w/o nested types, embed type and stop -->
   <xsl:template match="xs:element[not(xs:complexType or xs:simpleType)]" mode="global">
-    <xsl:param name="name" select="@name" />
-    <xsl:param name="type" select="@type" />
+    <xsl:variable name="name" select="@name" />
+    <xsl:variable name="type" select="@type" />
     <xsl:call-template name="debug">
       <xsl:with-param name="text" select="'Element'"/>
     </xsl:call-template>
@@ -198,7 +199,6 @@
   <!-- local or hoisted elem with nested type, apply recursively-->
   <xsl:template match="xs:element[xs:complexType or xs:simpleType]">
     <xsl:param name="level"/>
-    <xsl:param name="hoisted"/>
     <xsl:variable name="ptr">
       <xsl:call-template name="get-cardinality">
         <xsl:with-param name="minOccurs" select="@minOccurs"/>
@@ -320,11 +320,9 @@
   <xsl:template match="xs:attribute">
     <xsl:param name="level" select="''"/>
     <xsl:variable name="ptr">
-      <xsl:choose>
-        <xsl:when test="not(@use) or @use = 'optional'">
-          <xsl:text>*</xsl:text>
-        </xsl:when>
-       </xsl:choose>
+      <xsl:if test="not(@use) or @use = 'optional'">
+        <xsl:text>*</xsl:text>
+      </xsl:if>
     </xsl:variable>
     <xsl:variable name="name" select="@name" />
     <xsl:variable name="type" select="@type" />
@@ -624,7 +622,7 @@
         <xsl:value-of select="$normName"/>
         <xsl:text> </xsl:text>
         <xsl:choose>
-          <xsl:when test="child::xs:enumeration">
+          <xsl:when test="xs:enumeration">
             <xsl:value-of select="$normName"/>
           </xsl:when>
           <xsl:otherwise>
@@ -935,39 +933,19 @@
         <xsl:text>omitempty</xsl:text>
       </xsl:if>
     </xsl:variable>
-    <xsl:if test="string($optionalRule) != ''">
-      <xsl:value-of select="string($optionalRule)"/>
-    </xsl:if>
-    <xsl:if test="string($presenceRule) != ''">
-      <xsl:if test="string($optionalRule) != ''">
-        <xsl:text>,</xsl:text>
-      </xsl:if>
-      <xsl:value-of select="string($presenceRule)"/>
-    </xsl:if>
-    <xsl:if test="string($minRule) != ''">
-      <xsl:if test="string($optionalRule) != '' or string($presenceRule) != ''">
-        <xsl:text>,</xsl:text>
-      </xsl:if>
-      <xsl:value-of select="string($minRule)"/>
-    </xsl:if>
-    <xsl:if test="string($maxRule) != ''">
-      <xsl:if test="string($optionalRule) != '' or string($presenceRule) != '' or string($minRule) != ''">
-        <xsl:text>,</xsl:text>
-      </xsl:if>
-      <xsl:value-of select="string($maxRule)"/>
-    </xsl:if>
-    <xsl:if test="string($valueRule) != ''">
-      <xsl:if test="string($optionalRule) != '' or string($presenceRule) != '' or string($minRule) != '' or string($maxRule) != ''">
-        <xsl:text>,</xsl:text>
-      </xsl:if>
-      <xsl:value-of select="string($valueRule)"/>
-    </xsl:if>
-    <xsl:if test="string($diveRule) != ''">
-      <xsl:if test="string($optionalRule) != '' or string($presenceRule) != '' or string($minRule) != '' or string($maxRule) != '' or string($valueRule) != ''">
-        <xsl:text>,</xsl:text>
-      </xsl:if>
-      <xsl:value-of select="string($diveRule)"/>
-    </xsl:if>
+    <!-- build the final rule string by joining non-empty rules with commas -->
+    <xsl:variable name="rulesRTF">
+      <item><xsl:value-of select="$optionalRule"/></item>
+      <item><xsl:value-of select="$presenceRule"/></item>
+      <item><xsl:value-of select="$minRule"/></item>
+      <item><xsl:value-of select="$maxRule"/></item>
+      <item><xsl:value-of select="$valueRule"/></item>
+      <item><xsl:value-of select="$diveRule"/></item>
+    </xsl:variable>
+    <xsl:for-each select="exsl:node-set($rulesRTF)/item[. != '']">
+      <xsl:if test="position() &gt; 1">,</xsl:if>
+      <xsl:value-of select="."/>
+    </xsl:for-each>
   </xsl:template>
 
   <xsl:template name="build-enum-rule">
@@ -975,34 +953,13 @@
     <xsl:variable name="enumValues">
       <xsl:choose>
         <xsl:when test="self::xs:element and xs:simpleType/xs:restriction/xs:enumeration">
-          <xsl:for-each select="xs:simpleType/xs:restriction/xs:enumeration">
-            <xsl:if test="position() &gt; 1">
-              <xsl:text> </xsl:text>
-            </xsl:if>
-            <xsl:call-template name="emit-enum-value">
-              <xsl:with-param name="value" select="@value"/>
-            </xsl:call-template>
-          </xsl:for-each>
+          <xsl:apply-templates select="xs:simpleType/xs:restriction/xs:enumeration" mode="enum-value"/>
         </xsl:when>
         <xsl:when test="self::xs:restriction and xs:enumeration">
-          <xsl:for-each select="xs:enumeration">
-            <xsl:if test="position() &gt; 1">
-              <xsl:text> </xsl:text>
-            </xsl:if>
-            <xsl:call-template name="emit-enum-value">
-              <xsl:with-param name="value" select="@value"/>
-            </xsl:call-template>
-          </xsl:for-each>
+          <xsl:apply-templates select="xs:enumeration" mode="enum-value"/>
         </xsl:when>
         <xsl:when test="$type != '' and key('simpleTypeByName', $type)/xs:restriction/xs:enumeration">
-          <xsl:for-each select="key('simpleTypeByName', $type)/xs:restriction/xs:enumeration">
-            <xsl:if test="position() &gt; 1">
-              <xsl:text> </xsl:text>
-            </xsl:if>
-            <xsl:call-template name="emit-enum-value">
-              <xsl:with-param name="value" select="@value"/>
-            </xsl:call-template>
-          </xsl:for-each>
+          <xsl:apply-templates select="key('simpleTypeByName', $type)/xs:restriction/xs:enumeration" mode="enum-value"/>
         </xsl:when>
       </xsl:choose>
     </xsl:variable>
@@ -1010,6 +967,15 @@
       <xsl:text>oneof=</xsl:text>
       <xsl:value-of select="string($enumValues)"/>
     </xsl:if>
+  </xsl:template>
+
+  <xsl:template match="xs:enumeration" mode="enum-value">
+    <xsl:if test="position() &gt; 1">
+      <xsl:text> </xsl:text>
+    </xsl:if>
+    <xsl:call-template name="emit-enum-value">
+      <xsl:with-param name="value" select="@value"/>
+    </xsl:call-template>
   </xsl:template>
 
   <xsl:template name="emit-enum-value">
