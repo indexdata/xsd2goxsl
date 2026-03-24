@@ -28,6 +28,7 @@
   <xsl:param name="buildtag" select="''" />
   <xsl:param name="json" select="'no'"/>
   <xsl:param name="validate" select="'no'"/>
+  <xsl:variable name="namespaceImportTokens" select="str:tokenize($namespaceImports, ',')"/>
   <xsl:key name="simpleTypeByName" match="xs:simpleType[@name]" use="@name"/>
   <xsl:key name="complexTypeByName" match="xs:complexType[@name]" use="@name"/>
   <xsl:key name="elementByName" match="xs:element[@name]" use="@name"/>
@@ -821,7 +822,7 @@
   <xsl:template name="lookup-namespace-import-package">
     <xsl:param name="namespace"/>
     <xsl:value-of
-      select="normalize-space(substring-after(str:tokenize($namespaceImports, ',')[normalize-space(substring-before(.,'=')) = $namespace][1], '='))"/>
+      select="normalize-space(substring-after($namespaceImportTokens[normalize-space(substring-before(.,'=')) = $namespace][1], '='))"/>
   </xsl:template>
 
   <xsl:template name="emit-field-tags">
