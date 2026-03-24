@@ -27,6 +27,7 @@ The following parameters are supported (`--stringparam` in `xsltproc`):
 * `package` Go package name, defaults to `str:tokenize(str:tokenize($targetNamespace, '/')[last()],'.')[1]`
 * `omitempty` whether to set _omitempty_ modifier on field tags for optional and repeating elements, default `yes`
 * `json` should json tags be generated as well, default `no`
+* `validate` should [go-playground/validator](https://github.com/go-playground/validator) tags be generated as well, default `no`
 * `typeImports` comma-separated list of imports for additional type definitions used for date/time and decimal types
 * `dateTimeType` data type to use for XSD dateTime, defaults to `string`
 * `timeType` data type to use for XSD time, defaults to `string`
