@@ -822,7 +822,7 @@
 
   <xsl:template name="lookup-namespace-import-package">
     <xsl:param name="namespace"/>
-    <xsl:for-each select="str:tokenize($namespaceImports, ',')">
+    <xsl:for-each select="str:tokenize($namespaceImports, ',')[normalize-space(substring-before(.,'=')) = $namespace][1]">
       <xsl:variable name="ns" select="normalize-space(substring-before(.,'='))"/>
       <xsl:if test="$namespace = $ns">
         <xsl:value-of select="normalize-space(substring-after(.,'='))"/>
@@ -1108,7 +1108,6 @@
           <xsl:otherwise>1</xsl:otherwise>
         </xsl:choose>
       </xsl:when>
-      <xsl:otherwise>1</xsl:otherwise>
     </xsl:choose>
   </xsl:template>
 
@@ -1138,7 +1137,6 @@
           <xsl:otherwise>1</xsl:otherwise>
         </xsl:choose>
       </xsl:when>
-      <xsl:otherwise>1</xsl:otherwise>
     </xsl:choose>
   </xsl:template>
 
