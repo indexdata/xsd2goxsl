@@ -3,7 +3,8 @@
     version="1.0"
     xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
     xmlns:xs="http://www.w3.org/2001/XMLSchema"
-    xmlns:str="http://exslt.org/strings">
+    xmlns:str="http://exslt.org/strings"
+    xmlns:exsl="http://exslt.org/common">
 
   <xsl:output method="text" encoding="UTF-8"/>
   <xsl:strip-space elements="*" />
@@ -28,6 +29,7 @@
   <xsl:param name="buildtag" select="''" />
   <xsl:param name="json" select="'no'"/>
   <xsl:param name="validate" select="'no'"/>
+  <xsl:variable name="namespaceImportTokens" select="str:tokenize($namespaceImports, ',')"/>
   <xsl:key name="simpleTypeByName" match="xs:simpleType[@name]" use="@name"/>
   <xsl:key name="complexTypeByName" match="xs:complexType[@name]" use="@name"/>
   <xsl:key name="elementByName" match="xs:element[@name]" use="@name"/>
@@ -105,18 +107,19 @@
         <xsl:with-param name="uri" select="$namespace"/>
       </xsl:call-template>
     </xsl:variable>
-    <xsl:for-each select="str:tokenize($namespaceImports, ',')">
-      <xsl:variable name="ns" select="normalize-space(substring-before(.,'='))"/>
-      <xsl:variable name="pkg" select="normalize-space(substring-after(.,'='))"/>
-      <xsl:if test="$namespace = $ns">
-        <xsl:value-of select="$indent"/>
-        <xsl:value-of select="$prefix" />
-        <xsl:text> "</xsl:text>
-        <xsl:value-of select="$pkg"/>
-        <xsl:text>"</xsl:text>
-        <xsl:value-of select="$break"/>
-      </xsl:if>
-    </xsl:for-each>
+    <xsl:variable name="pkg">
+      <xsl:call-template name="lookup-namespace-import-package">
+        <xsl:with-param name="namespace" select="$namespace"/>
+      </xsl:call-template>
+    </xsl:variable>
+    <xsl:if test="string($pkg) != ''">
+      <xsl:value-of select="$indent"/>
+      <xsl:value-of select="$prefix" />
+      <xsl:text> "</xsl:text>
+      <xsl:value-of select="string($pkg)"/>
+      <xsl:text>"</xsl:text>
+      <xsl:value-of select="$break"/>
+    </xsl:if>
   </xsl:template>
 
   <!-- global elem with nested types, apply recursively -->
@@ -127,8 +130,8 @@
 
   <!-- global elem w/o nested types, embed type and stop -->
   <xsl:template match="xs:element[not(xs:complexType or xs:simpleType)]" mode="global">
-    <xsl:param name="name" select="@name" />
-    <xsl:param name="type" select="@type" />
+    <xsl:variable name="name" select="@name" />
+    <xsl:variable name="type" select="@type" />
     <xsl:call-template name="debug">
       <xsl:with-param name="text" select="'Element'"/>
     </xsl:call-template>
@@ -196,13 +199,12 @@
   <!-- local or hoisted elem with nested type, apply recursively-->
   <xsl:template match="xs:element[xs:complexType or xs:simpleType]">
     <xsl:param name="level"/>
-    <xsl:param name="hoisted"/>
     <xsl:variable name="ptr">
       <xsl:call-template name="get-cardinality">
         <xsl:with-param name="minOccurs" select="@minOccurs"/>
         <xsl:with-param name="maxOccurs" select="@maxOccurs"/>
         <xsl:with-param name="container" select="'element'"/>
-        </xsl:call-template>
+      </xsl:call-template>
     </xsl:variable>
     <xsl:apply-templates>
       <xsl:with-param name="name" select="@name"/>
@@ -221,7 +223,7 @@
         <xsl:with-param name="maxOccurs" select="@maxOccurs"/>
         <xsl:with-param name="parentPtr" select="$parentPtr"/>
         <xsl:with-param name="container" select="'element'"/>
-        </xsl:call-template>
+      </xsl:call-template>
     </xsl:variable>
     <xsl:variable name="ref" select="@ref" />
     <xsl:variable name="name" select="@name" />
@@ -259,18 +261,16 @@
         </xsl:call-template>
         <xsl:text> </xsl:text>
         <xsl:variable name="xmlTag">
-          <xsl:value-of select="$locRef"/>
-          <xsl:if test="$omitempty = 'yes' and $ptr != ''">
-            <xsl:text>,omitempty</xsl:text>
-          </xsl:if>
+          <xsl:call-template name="build-xml-tag">
+            <xsl:with-param name="name" select="$locRef"/>
+            <xsl:with-param name="omitempty" select="$omitempty = 'yes' and $ptr != ''"/>
+          </xsl:call-template>
         </xsl:variable>
         <xsl:variable name="jsonTag">
-          <xsl:if test="$json = 'yes'">
-            <xsl:value-of select="$locRef"/>
-            <xsl:if test="$omitempty = 'yes' and $ptr != ''">
-              <xsl:text>,omitempty</xsl:text>
-            </xsl:if>
-          </xsl:if>
+          <xsl:call-template name="build-json-tag">
+            <xsl:with-param name="name" select="$locRef"/>
+            <xsl:with-param name="omitempty" select="$omitempty = 'yes' and $ptr != ''"/>
+          </xsl:call-template>
         </xsl:variable>
         <xsl:call-template name="emit-field-tags">
           <xsl:with-param name="xml" select="string($xmlTag)"/>
@@ -292,18 +292,16 @@
         </xsl:call-template>
         <xsl:text> </xsl:text>
         <xsl:variable name="xmlTag">
-          <xsl:value-of select="$name"/>
-          <xsl:if test="$omitempty = 'yes' and $ptr != ''">
-            <xsl:text>,omitempty</xsl:text>
-          </xsl:if>
+          <xsl:call-template name="build-xml-tag">
+            <xsl:with-param name="name" select="$name"/>
+            <xsl:with-param name="omitempty" select="$omitempty = 'yes' and $ptr != ''"/>
+          </xsl:call-template>
         </xsl:variable>
         <xsl:variable name="jsonTag">
-          <xsl:if test="$json = 'yes'">
-            <xsl:value-of select="$name"/>
-            <xsl:if test="$omitempty = 'yes' and $ptr != ''">
-              <xsl:text>,omitempty</xsl:text>
-            </xsl:if>
-          </xsl:if>
+          <xsl:call-template name="build-json-tag">
+            <xsl:with-param name="name" select="$name"/>
+            <xsl:with-param name="omitempty" select="$omitempty = 'yes' and $ptr != ''"/>
+          </xsl:call-template>
         </xsl:variable>
         <xsl:call-template name="emit-field-tags">
           <xsl:with-param name="xml" select="string($xmlTag)"/>
@@ -322,11 +320,9 @@
   <xsl:template match="xs:attribute">
     <xsl:param name="level" select="''"/>
     <xsl:variable name="ptr">
-      <xsl:choose>
-        <xsl:when test="not(@use) or @use = 'optional'">
-          <xsl:text>*</xsl:text>
-        </xsl:when>
-       </xsl:choose>
+      <xsl:if test="not(@use) or @use = 'optional'">
+        <xsl:text>*</xsl:text>
+      </xsl:if>
     </xsl:variable>
     <xsl:variable name="name" select="@name" />
     <xsl:variable name="type" select="@type" />
@@ -349,20 +345,18 @@
         <xsl:value-of select="$targetNamespace"/>
         <xsl:text> </xsl:text>
       </xsl:if>
-      <xsl:value-of select="$name"/>
-      <xsl:text>,attr</xsl:text>
-      <xsl:if test="$omitempty = 'yes' and $ptr = '*'">
-        <xsl:text>,omitempty</xsl:text>
-      </xsl:if>
+      <xsl:call-template name="build-xml-tag">
+        <xsl:with-param name="name" select="$name"/>
+        <xsl:with-param name="suffix" select="',attr'"/>
+        <xsl:with-param name="omitempty" select="$omitempty = 'yes' and $ptr = '*'"/>
+      </xsl:call-template>
     </xsl:variable>
     <xsl:variable name="jsonTag">
-      <xsl:if test="$json = 'yes'">
-        <xsl:text>@</xsl:text>
-        <xsl:value-of select="$name"/>
-        <xsl:if test="$omitempty = 'yes' and $ptr = '*'">
-          <xsl:text>,omitempty</xsl:text>
-        </xsl:if>
-      </xsl:if>
+      <xsl:call-template name="build-json-tag">
+        <xsl:with-param name="name" select="$name"/>
+        <xsl:with-param name="prefix" select="'@'"/>
+        <xsl:with-param name="omitempty" select="$omitempty = 'yes' and $ptr = '*'"/>
+      </xsl:call-template>
     </xsl:variable>
     <xsl:call-template name="emit-field-tags">
       <xsl:with-param name="xml" select="string($xmlTag)"/>
@@ -415,18 +409,16 @@
         </xsl:call-template>
         <xsl:text> </xsl:text>
         <xsl:variable name="xmlTag">
-          <xsl:value-of select="$name"/>
-          <xsl:if test="$omitempty = 'yes' and $parentPtr != ''">
-            <xsl:text>,omitempty</xsl:text>
-          </xsl:if>
+          <xsl:call-template name="build-xml-tag">
+            <xsl:with-param name="name" select="$name"/>
+            <xsl:with-param name="omitempty" select="$omitempty = 'yes' and $parentPtr != ''"/>
+          </xsl:call-template>
         </xsl:variable>
         <xsl:variable name="jsonTag">
-          <xsl:if test="$json = 'yes'">
-            <xsl:value-of select="$name"/>
-            <xsl:if test="$omitempty = 'yes' and $parentPtr != ''">
-              <xsl:text>,omitempty</xsl:text>
-            </xsl:if>
-          </xsl:if>
+          <xsl:call-template name="build-json-tag">
+            <xsl:with-param name="name" select="$name"/>
+            <xsl:with-param name="omitempty" select="$omitempty = 'yes' and $parentPtr != ''"/>
+          </xsl:call-template>
         </xsl:variable>
         <xsl:call-template name="emit-field-tags">
           <xsl:with-param name="xml" select="string($xmlTag)"/>
@@ -474,7 +466,6 @@
   </xsl:template>
 
   <xsl:template match="xs:simpleType" mode="global">
-    <xsl:variable name="name" select="@name" />
     <xsl:call-template name="debug">
       <xsl:with-param name="text" select="'SimpleType'"/>
     </xsl:call-template>
@@ -553,11 +544,11 @@
     <xsl:value-of select="$normType"/>
     <xsl:if test="$content = 'simple'">
       <xsl:text> `xml:",chardata</xsl:text>
-          <xsl:if test="$json = 'yes'">
-      <xsl:text>" json:"#text</xsl:text>
-      <xsl:if test="$omitempty = 'yes'">
-        <xsl:text>,omitempty</xsl:text>
-      </xsl:if>
+      <xsl:if test="$json = 'yes'">
+        <xsl:text>" json:"#text</xsl:text>
+        <xsl:if test="$omitempty = 'yes'">
+          <xsl:text>,omitempty</xsl:text>
+        </xsl:if>
       </xsl:if>
       <xsl:text>"`</xsl:text>
     </xsl:if>
@@ -572,28 +563,11 @@
     <xsl:param name="level" select="''"/>
     <xsl:param name="name" />
     <xsl:param name="parentPtr" />
-    <xsl:variable name="ptr">
-      <xsl:call-template name="get-cardinality">
-        <xsl:with-param name="minOccurs" select="@minOccurs"/>
-        <xsl:with-param name="maxOccurs" select="@maxOccurs"/>
-        <xsl:with-param name="parentPtr" select="$parentPtr"/>
-        <xsl:with-param name="container" select="'sequence'"/>
-        </xsl:call-template>
-    </xsl:variable>
-    <xsl:variable name="sequence">
-      <xsl:apply-templates>
-        <xsl:with-param name="name" select="$name"/>
-        <xsl:with-param name="level" select="$level"/>
-        <xsl:with-param name="parentPtr" select="$ptr"/>
-      </xsl:apply-templates>
-    </xsl:variable>
-    <xsl:call-template name="debug">
+    <xsl:call-template name="emit-container">
+      <xsl:with-param name="container" select="'sequence'"/>
       <xsl:with-param name="level" select="$level"/>
-      <xsl:with-param name="text" select="'Sequence'"/>
-    </xsl:call-template>
-    <!-- nested choice may produce duplicate fields-->
-    <xsl:call-template name="distinct-lines">
-      <xsl:with-param name="text" select="$sequence"/>
+      <xsl:with-param name="name" select="$name"/>
+      <xsl:with-param name="parentPtr" select="$parentPtr"/>
     </xsl:call-template>
   </xsl:template>
 
@@ -601,28 +575,11 @@
     <xsl:param name="level" select="''"/>
     <xsl:param name="name" />
     <xsl:param name="parentPtr" />
-    <xsl:variable name="ptr">
-      <xsl:call-template name="get-cardinality">
-        <xsl:with-param name="minOccurs" select="@minOccurs"/>
-        <xsl:with-param name="maxOccurs" select="@maxOccurs"/>
-        <xsl:with-param name="parentPtr" select="$parentPtr"/>
-        <xsl:with-param name="container" select="'choice'"/>
-        </xsl:call-template>
-    </xsl:variable>
-    <xsl:variable name="choice">
-      <xsl:apply-templates>
-        <xsl:with-param name="level" select="$level"/>
-        <xsl:with-param name="name" select="$name"/>
-        <xsl:with-param name="parentPtr" select="$ptr"/>
-      </xsl:apply-templates>
-    </xsl:variable>
-    <xsl:call-template name="debug">
+    <xsl:call-template name="emit-container">
+      <xsl:with-param name="container" select="'choice'"/>
       <xsl:with-param name="level" select="$level"/>
-      <xsl:with-param name="text" select="'Choice'"/>
-    </xsl:call-template>
-    <!-- choice may produce duplicate fields-->
-    <xsl:call-template name="distinct-lines">
-      <xsl:with-param name="text" select="$choice"/>
+      <xsl:with-param name="name" select="$name"/>
+      <xsl:with-param name="parentPtr" select="$parentPtr"/>
     </xsl:call-template>
   </xsl:template>
 
@@ -665,7 +622,7 @@
         <xsl:value-of select="$normName"/>
         <xsl:text> </xsl:text>
         <xsl:choose>
-          <xsl:when test="child::xs:enumeration">
+          <xsl:when test="xs:enumeration">
             <xsl:value-of select="$normName"/>
           </xsl:when>
           <xsl:otherwise>
@@ -674,18 +631,16 @@
         </xsl:choose>
         <xsl:text> </xsl:text>
         <xsl:variable name="xmlTag">
-          <xsl:value-of select="$name"/>
-          <xsl:if test="$omitempty = 'yes' and $parentPtr != ''">
-            <xsl:text>,omitempty</xsl:text>
-          </xsl:if>
+          <xsl:call-template name="build-xml-tag">
+            <xsl:with-param name="name" select="$name"/>
+            <xsl:with-param name="omitempty" select="$omitempty = 'yes' and $parentPtr != ''"/>
+          </xsl:call-template>
         </xsl:variable>
         <xsl:variable name="jsonTag">
-          <xsl:if test="$json = 'yes'">
-            <xsl:value-of select="$name"/>
-            <xsl:if test="$omitempty = 'yes' and $parentPtr != ''">
-              <xsl:text>,omitempty</xsl:text>
-            </xsl:if>
-          </xsl:if>
+          <xsl:call-template name="build-json-tag">
+            <xsl:with-param name="name" select="$name"/>
+            <xsl:with-param name="omitempty" select="$omitempty = 'yes' and $parentPtr != ''"/>
+          </xsl:call-template>
         </xsl:variable>
         <xsl:call-template name="emit-field-tags">
           <xsl:with-param name="xml" select="string($xmlTag)"/>
@@ -699,10 +654,9 @@
   </xsl:template>
 
   <xsl:template match="xs:any">
-    <xsl:value-of select="$indent"/>
-    <xsl:text>XMLContent []byte</xsl:text>
-    <xsl:value-of select="$indent"/>
-    <xsl:text> `xml:",innerxml</xsl:text>
+    <xsl:param name="level" select="''"/>
+    <xsl:value-of select="$level"/>
+    <xsl:text>XMLContent []byte `xml:",innerxml</xsl:text>
     <xsl:if test="$json = 'yes'">
       <xsl:text>" json:"#content</xsl:text>
     </xsl:if>
@@ -799,6 +753,76 @@
     </xsl:for-each>
   </xsl:template>
 
+  <xsl:template name="emit-container">
+    <xsl:param name="container"/>
+    <xsl:param name="level" select="''"/>
+    <xsl:param name="name"/>
+    <xsl:param name="parentPtr"/>
+    <xsl:variable name="ptr">
+      <xsl:call-template name="get-cardinality">
+        <xsl:with-param name="minOccurs" select="@minOccurs"/>
+        <xsl:with-param name="maxOccurs" select="@maxOccurs"/>
+        <xsl:with-param name="parentPtr" select="$parentPtr"/>
+        <xsl:with-param name="container" select="$container"/>
+      </xsl:call-template>
+    </xsl:variable>
+    <xsl:variable name="fields">
+      <xsl:apply-templates>
+        <xsl:with-param name="level" select="$level"/>
+        <xsl:with-param name="name" select="$name"/>
+        <xsl:with-param name="parentPtr" select="$ptr"/>
+      </xsl:apply-templates>
+    </xsl:variable>
+    <xsl:variable name="debugText">
+      <xsl:choose>
+        <xsl:when test="$container = 'sequence'">
+          <xsl:text>Sequence</xsl:text>
+        </xsl:when>
+        <xsl:otherwise>
+          <xsl:text>Choice</xsl:text>
+        </xsl:otherwise>
+      </xsl:choose>
+    </xsl:variable>
+    <xsl:call-template name="debug">
+      <xsl:with-param name="level" select="$level"/>
+      <xsl:with-param name="text" select="string($debugText)"/>
+    </xsl:call-template>
+    <!-- nested choices can still render duplicate fields -->
+    <xsl:call-template name="distinct-lines">
+      <xsl:with-param name="text" select="$fields"/>
+    </xsl:call-template>
+  </xsl:template>
+
+  <xsl:template name="build-xml-tag">
+    <xsl:param name="name"/>
+    <xsl:param name="suffix" select="''"/>
+    <xsl:param name="omitempty" select="false()"/>
+    <xsl:value-of select="$name"/>
+    <xsl:value-of select="$suffix"/>
+    <xsl:if test="$omitempty">
+      <xsl:text>,omitempty</xsl:text>
+    </xsl:if>
+  </xsl:template>
+
+  <xsl:template name="build-json-tag">
+    <xsl:param name="name"/>
+    <xsl:param name="prefix" select="''"/>
+    <xsl:param name="omitempty" select="false()"/>
+    <xsl:if test="$json = 'yes'">
+      <xsl:value-of select="$prefix"/>
+      <xsl:value-of select="$name"/>
+      <xsl:if test="$omitempty">
+        <xsl:text>,omitempty</xsl:text>
+      </xsl:if>
+    </xsl:if>
+  </xsl:template>
+
+  <xsl:template name="lookup-namespace-import-package">
+    <xsl:param name="namespace"/>
+    <xsl:value-of
+      select="normalize-space(substring-after($namespaceImportTokens[normalize-space(substring-before(.,'=')) = $namespace][1], '='))"/>
+  </xsl:template>
+
   <xsl:template name="emit-field-tags">
     <xsl:param name="xml"/>
     <xsl:param name="json"/>
@@ -836,60 +860,10 @@
       </xsl:call-template>
     </xsl:variable>
     <xsl:variable name="minOccurs">
-      <xsl:choose>
-        <xsl:when test="self::xs:element">
-          <xsl:choose>
-            <xsl:when test="string(@minOccurs) != ''">
-              <xsl:value-of select="@minOccurs"/>
-            </xsl:when>
-            <xsl:otherwise>1</xsl:otherwise>
-          </xsl:choose>
-        </xsl:when>
-        <xsl:when test="self::xs:complexType">
-          <xsl:choose>
-            <xsl:when test="string(parent::xs:element/@minOccurs) != ''">
-              <xsl:value-of select="parent::xs:element/@minOccurs"/>
-            </xsl:when>
-            <xsl:otherwise>1</xsl:otherwise>
-          </xsl:choose>
-        </xsl:when>
-        <xsl:when test="self::xs:restriction">
-          <xsl:choose>
-            <xsl:when test="string(ancestor::xs:element[1]/@minOccurs) != ''">
-              <xsl:value-of select="ancestor::xs:element[1]/@minOccurs"/>
-            </xsl:when>
-            <xsl:otherwise>1</xsl:otherwise>
-          </xsl:choose>
-        </xsl:when>
-      </xsl:choose>
+      <xsl:call-template name="resolve-min-occurs"/>
     </xsl:variable>
     <xsl:variable name="maxOccurs">
-      <xsl:choose>
-        <xsl:when test="self::xs:element">
-          <xsl:choose>
-            <xsl:when test="string(@maxOccurs) != ''">
-              <xsl:value-of select="@maxOccurs"/>
-            </xsl:when>
-            <xsl:otherwise>1</xsl:otherwise>
-          </xsl:choose>
-        </xsl:when>
-        <xsl:when test="self::xs:complexType">
-          <xsl:choose>
-            <xsl:when test="string(parent::xs:element/@maxOccurs) != ''">
-              <xsl:value-of select="parent::xs:element/@maxOccurs"/>
-            </xsl:when>
-            <xsl:otherwise>1</xsl:otherwise>
-          </xsl:choose>
-        </xsl:when>
-        <xsl:when test="self::xs:restriction">
-          <xsl:choose>
-            <xsl:when test="string(ancestor::xs:element[1]/@maxOccurs) != ''">
-              <xsl:value-of select="ancestor::xs:element[1]/@maxOccurs"/>
-            </xsl:when>
-            <xsl:otherwise>1</xsl:otherwise>
-          </xsl:choose>
-        </xsl:when>
-      </xsl:choose>
+      <xsl:call-template name="resolve-max-occurs"/>
     </xsl:variable>
     <xsl:variable name="enumRule">
       <xsl:call-template name="build-enum-rule">
@@ -959,39 +933,19 @@
         <xsl:text>omitempty</xsl:text>
       </xsl:if>
     </xsl:variable>
-    <xsl:if test="string($optionalRule) != ''">
-      <xsl:value-of select="string($optionalRule)"/>
-    </xsl:if>
-    <xsl:if test="string($presenceRule) != ''">
-      <xsl:if test="string($optionalRule) != ''">
-        <xsl:text>,</xsl:text>
-      </xsl:if>
-      <xsl:value-of select="string($presenceRule)"/>
-    </xsl:if>
-    <xsl:if test="string($minRule) != ''">
-      <xsl:if test="string($optionalRule) != '' or string($presenceRule) != ''">
-        <xsl:text>,</xsl:text>
-      </xsl:if>
-      <xsl:value-of select="string($minRule)"/>
-    </xsl:if>
-    <xsl:if test="string($maxRule) != ''">
-      <xsl:if test="string($optionalRule) != '' or string($presenceRule) != '' or string($minRule) != ''">
-        <xsl:text>,</xsl:text>
-      </xsl:if>
-      <xsl:value-of select="string($maxRule)"/>
-    </xsl:if>
-    <xsl:if test="string($valueRule) != ''">
-      <xsl:if test="string($optionalRule) != '' or string($presenceRule) != '' or string($minRule) != '' or string($maxRule) != ''">
-        <xsl:text>,</xsl:text>
-      </xsl:if>
-      <xsl:value-of select="string($valueRule)"/>
-    </xsl:if>
-    <xsl:if test="string($diveRule) != ''">
-      <xsl:if test="string($optionalRule) != '' or string($presenceRule) != '' or string($minRule) != '' or string($maxRule) != '' or string($valueRule) != ''">
-        <xsl:text>,</xsl:text>
-      </xsl:if>
-      <xsl:value-of select="string($diveRule)"/>
-    </xsl:if>
+    <!-- build the final rule string by joining non-empty rules with commas -->
+    <xsl:variable name="rulesRTF">
+      <item><xsl:value-of select="$optionalRule"/></item>
+      <item><xsl:value-of select="$presenceRule"/></item>
+      <item><xsl:value-of select="$minRule"/></item>
+      <item><xsl:value-of select="$maxRule"/></item>
+      <item><xsl:value-of select="$valueRule"/></item>
+      <item><xsl:value-of select="$diveRule"/></item>
+    </xsl:variable>
+    <xsl:for-each select="exsl:node-set($rulesRTF)/item[. != '']">
+      <xsl:if test="position() &gt; 1">,</xsl:if>
+      <xsl:value-of select="."/>
+    </xsl:for-each>
   </xsl:template>
 
   <xsl:template name="build-enum-rule">
@@ -999,34 +953,13 @@
     <xsl:variable name="enumValues">
       <xsl:choose>
         <xsl:when test="self::xs:element and xs:simpleType/xs:restriction/xs:enumeration">
-          <xsl:for-each select="xs:simpleType/xs:restriction/xs:enumeration">
-            <xsl:if test="position() &gt; 1">
-              <xsl:text> </xsl:text>
-            </xsl:if>
-            <xsl:call-template name="emit-enum-value">
-              <xsl:with-param name="value" select="@value"/>
-            </xsl:call-template>
-          </xsl:for-each>
+          <xsl:apply-templates select="xs:simpleType/xs:restriction/xs:enumeration" mode="enum-value"/>
         </xsl:when>
         <xsl:when test="self::xs:restriction and xs:enumeration">
-          <xsl:for-each select="xs:enumeration">
-            <xsl:if test="position() &gt; 1">
-              <xsl:text> </xsl:text>
-            </xsl:if>
-            <xsl:call-template name="emit-enum-value">
-              <xsl:with-param name="value" select="@value"/>
-            </xsl:call-template>
-          </xsl:for-each>
+          <xsl:apply-templates select="xs:enumeration" mode="enum-value"/>
         </xsl:when>
         <xsl:when test="$type != '' and key('simpleTypeByName', $type)/xs:restriction/xs:enumeration">
-          <xsl:for-each select="key('simpleTypeByName', $type)/xs:restriction/xs:enumeration">
-            <xsl:if test="position() &gt; 1">
-              <xsl:text> </xsl:text>
-            </xsl:if>
-            <xsl:call-template name="emit-enum-value">
-              <xsl:with-param name="value" select="@value"/>
-            </xsl:call-template>
-          </xsl:for-each>
+          <xsl:apply-templates select="key('simpleTypeByName', $type)/xs:restriction/xs:enumeration" mode="enum-value"/>
         </xsl:when>
       </xsl:choose>
     </xsl:variable>
@@ -1034,6 +967,15 @@
       <xsl:text>oneof=</xsl:text>
       <xsl:value-of select="string($enumValues)"/>
     </xsl:if>
+  </xsl:template>
+
+  <xsl:template match="xs:enumeration" mode="enum-value">
+    <xsl:if test="position() &gt; 1">
+      <xsl:text> </xsl:text>
+    </xsl:if>
+    <xsl:call-template name="emit-enum-value">
+      <xsl:with-param name="value" select="@value"/>
+    </xsl:call-template>
   </xsl:template>
 
   <xsl:template name="emit-enum-value">
@@ -1057,34 +999,104 @@
         <xsl:with-param name="name" select="$type"/>
       </xsl:call-template>
     </xsl:variable>
+    <xsl:variable name="stringLikeBuiltin">
+      <xsl:call-template name="is-string-like-builtin-type">
+        <xsl:with-param name="type" select="$resolvedType"/>
+      </xsl:call-template>
+    </xsl:variable>
     <xsl:choose>
-      <xsl:when test="$resolvedType = 'string'
-                      or $resolvedType = 'language'
-                      or $resolvedType = 'dateTime'
-                      or $resolvedType = 'date'
-                      or $resolvedType = 'time'
-                      or $resolvedType = 'gYear'
-                      or $resolvedType = 'gYearMonth'
-                      or $resolvedType = 'gMonthDay'
-                      or $resolvedType = 'gDay'
-                      or $resolvedType = 'gMonth'
-                      or $resolvedType = 'base64Binary'
-                      or $resolvedType = 'normalizedString'
-                      or $resolvedType = 'token'
-                      or $resolvedType = 'NCName'
-                      or $resolvedType = 'NMTOKEN'
-                      or $resolvedType = 'NMTOKENS'
-                      or $resolvedType = 'anySimpleType'
-                      or $resolvedType = 'anyType'
-                      or $resolvedType = 'anyURI'
-                      or $resolvedType = 'ID'
-                      or $resolvedType = 'IDREF'">
-        <xsl:text>yes</xsl:text>
-      </xsl:when>
       <xsl:when test="key('simpleTypeByName', $resolvedType)/xs:restriction/@base">
         <xsl:call-template name="is-string-like-scalar">
           <xsl:with-param name="type" select="key('simpleTypeByName', $resolvedType)/xs:restriction/@base"/>
         </xsl:call-template>
+      </xsl:when>
+      <xsl:when test="string($stringLikeBuiltin) = 'yes'">
+        <xsl:text>yes</xsl:text>
+      </xsl:when>
+    </xsl:choose>
+  </xsl:template>
+
+  <xsl:template name="is-string-like-builtin-type">
+    <xsl:param name="type"/>
+    <xsl:if test="$type = 'string'
+                  or $type = 'language'
+                  or $type = 'dateTime'
+                  or $type = 'date'
+                  or $type = 'time'
+                  or $type = 'gYear'
+                  or $type = 'gYearMonth'
+                  or $type = 'gMonthDay'
+                  or $type = 'gDay'
+                  or $type = 'gMonth'
+                  or $type = 'base64Binary'
+                  or $type = 'normalizedString'
+                  or $type = 'token'
+                  or $type = 'NCName'
+                  or $type = 'NMTOKEN'
+                  or $type = 'NMTOKENS'
+                  or $type = 'anySimpleType'
+                  or $type = 'anyType'
+                  or $type = 'anyURI'
+                  or $type = 'ID'
+                  or $type = 'IDREF'">
+        <xsl:text>yes</xsl:text>
+    </xsl:if>
+  </xsl:template>
+
+  <xsl:template name="resolve-min-occurs">
+    <xsl:choose>
+      <xsl:when test="self::xs:element">
+        <xsl:choose>
+          <xsl:when test="string(@minOccurs) != ''">
+            <xsl:value-of select="@minOccurs"/>
+          </xsl:when>
+          <xsl:otherwise>1</xsl:otherwise>
+        </xsl:choose>
+      </xsl:when>
+      <xsl:when test="self::xs:complexType">
+        <xsl:choose>
+          <xsl:when test="string(parent::xs:element/@minOccurs) != ''">
+            <xsl:value-of select="parent::xs:element/@minOccurs"/>
+          </xsl:when>
+          <xsl:otherwise>1</xsl:otherwise>
+        </xsl:choose>
+      </xsl:when>
+      <xsl:when test="self::xs:restriction">
+        <xsl:choose>
+          <xsl:when test="string(ancestor::xs:element[1]/@minOccurs) != ''">
+            <xsl:value-of select="ancestor::xs:element[1]/@minOccurs"/>
+          </xsl:when>
+          <xsl:otherwise>1</xsl:otherwise>
+        </xsl:choose>
+      </xsl:when>
+    </xsl:choose>
+  </xsl:template>
+
+  <xsl:template name="resolve-max-occurs">
+    <xsl:choose>
+      <xsl:when test="self::xs:element">
+        <xsl:choose>
+          <xsl:when test="string(@maxOccurs) != ''">
+            <xsl:value-of select="@maxOccurs"/>
+          </xsl:when>
+          <xsl:otherwise>1</xsl:otherwise>
+        </xsl:choose>
+      </xsl:when>
+      <xsl:when test="self::xs:complexType">
+        <xsl:choose>
+          <xsl:when test="string(parent::xs:element/@maxOccurs) != ''">
+            <xsl:value-of select="parent::xs:element/@maxOccurs"/>
+          </xsl:when>
+          <xsl:otherwise>1</xsl:otherwise>
+        </xsl:choose>
+      </xsl:when>
+      <xsl:when test="self::xs:restriction">
+        <xsl:choose>
+          <xsl:when test="string(ancestor::xs:element[1]/@maxOccurs) != ''">
+            <xsl:value-of select="ancestor::xs:element[1]/@maxOccurs"/>
+          </xsl:when>
+          <xsl:otherwise>1</xsl:otherwise>
+        </xsl:choose>
       </xsl:when>
     </xsl:choose>
   </xsl:template>
@@ -1150,14 +1162,9 @@
   <xsl:template name="convert-name">
     <xsl:param name="name"/>
     <xsl:variable name="normName">
-      <xsl:choose>
-        <xsl:when test="contains($name,':')">
-          <xsl:value-of select="substring-after($name,':')"/>
-        </xsl:when>
-        <xsl:otherwise>
-          <xsl:value-of select="$name"/>
-        </xsl:otherwise>
-      </xsl:choose>
+      <xsl:call-template name="strip-prefix">
+        <xsl:with-param name="name" select="$name"/>
+      </xsl:call-template>
     </xsl:variable>
     <xsl:variable name="lowercase" select="'abcdefghijklmnopqrstuvwxyz'" />
     <xsl:variable name="uppercase" select="'ABCDEFGHIJKLMNOPQRSTUVWXYZ'" />
@@ -1181,26 +1188,18 @@
       </xsl:call-template>
     </xsl:variable>
     <xsl:variable name="t">
-      <xsl:choose>
-        <xsl:when test="contains($type,':')">
-          <xsl:value-of select="substring-after($type,':')"/>
-        </xsl:when>
-        <xsl:otherwise>
-          <xsl:value-of select="$type"/>
-        </xsl:otherwise>
-      </xsl:choose>
+      <xsl:call-template name="strip-prefix">
+        <xsl:with-param name="name" select="$type"/>
+      </xsl:call-template>
+    </xsl:variable>
+    <xsl:variable name="stringLikeBuiltin">
+      <xsl:call-template name="is-string-like-builtin-type">
+        <xsl:with-param name="type" select="$t"/>
+      </xsl:call-template>
     </xsl:variable>
     <xsl:choose>
       <xsl:when test="$ns = $xmlns_xsd">
         <xsl:choose>
-          <xsl:when test="$t = 'string'">
-            <xsl:value-of select="$array"/>
-            <xsl:text>string</xsl:text>
-          </xsl:when>
-          <xsl:when test="$t = 'language'">
-            <xsl:value-of select="$array"/>
-            <xsl:text>string</xsl:text>
-          </xsl:when>
           <xsl:when test="$t = 'dateTime'">
             <xsl:choose>
               <xsl:when test="$dateTimeType">
@@ -1237,59 +1236,7 @@
               </xsl:otherwise>
             </xsl:choose>
           </xsl:when>
-          <xsl:when test="$t = 'gYear'">
-            <xsl:value-of select="$array"/>
-            <xsl:text>string</xsl:text>
-          </xsl:when>
-          <xsl:when test="$t = 'gYearMonth'">
-            <xsl:value-of select="$array"/>
-            <xsl:text>string</xsl:text>
-          </xsl:when>
-          <xsl:when test="$t = 'gMonthDay'">
-            <xsl:value-of select="$array"/>
-            <xsl:text>string</xsl:text>
-          </xsl:when>
-          <xsl:when test="$t = 'gDay'">
-            <xsl:value-of select="$array"/>
-            <xsl:text>string</xsl:text>
-          </xsl:when>
-          <xsl:when test="$t = 'gMonth'">
-            <xsl:value-of select="$array"/>
-            <xsl:text>string</xsl:text>
-          </xsl:when>
-          <xsl:when test="$t = 'base64Binary'">
-            <xsl:value-of select="$array"/>
-            <xsl:text>string</xsl:text>
-          </xsl:when>
-          <xsl:when test="$t = 'normalizedString'">
-            <xsl:value-of select="$array"/>
-            <xsl:text>string</xsl:text>
-          </xsl:when>
-          <xsl:when test="$t = 'token'">
-            <xsl:value-of select="$array"/>
-            <xsl:text>string</xsl:text>
-          </xsl:when>
-          <xsl:when test="$t = 'NCName'">
-            <xsl:value-of select="$array"/>
-            <xsl:text>string</xsl:text>
-          </xsl:when>
-          <xsl:when test="$t = 'NMTOKEN'">
-            <xsl:value-of select="$array"/>
-            <xsl:text>string</xsl:text>
-          </xsl:when>
-          <xsl:when test="$t = 'NMTOKENS'">
-            <xsl:value-of select="$array"/>
-            <xsl:text>string</xsl:text>
-          </xsl:when>
-          <xsl:when test="$t = 'anySimpleType'">
-            <xsl:value-of select="$array"/>
-            <xsl:text>string</xsl:text>
-          </xsl:when>
-          <xsl:when test="$t = 'anyType'">
-            <xsl:value-of select="$array"/>
-            <xsl:text>string</xsl:text>
-          </xsl:when>
-          <xsl:when test="$t = 'anyURI'">
+          <xsl:when test="string($stringLikeBuiltin) = 'yes'">
             <xsl:value-of select="$array"/>
             <xsl:text>string</xsl:text>
           </xsl:when>
@@ -1361,14 +1308,6 @@
             <xsl:value-of select="$array"/>
             <xsl:text>bool</xsl:text>
           </xsl:when>
-          <xsl:when test="$t = 'ID'">
-            <xsl:value-of select="$array"/>
-            <xsl:text>string</xsl:text>
-          </xsl:when>
-          <xsl:when test="$t = 'IDREF'">
-            <xsl:value-of select="$array"/>
-            <xsl:text>string</xsl:text>
-          </xsl:when>
           <xsl:otherwise>
             <xsl:message>
               //unknown XSD type:<xsl:value-of select="$t"/>
@@ -1390,7 +1329,12 @@
       </xsl:when>
       <xsl:otherwise>
         <xsl:value-of select="$ptr"/>
-        <xsl:if test="contains($type,':') and $ns != $targetNamespace and contains($namespaceImports,$ns)">
+        <xsl:variable name="importPackage">
+          <xsl:call-template name="lookup-namespace-import-package">
+            <xsl:with-param name="namespace" select="$ns"/>
+          </xsl:call-template>
+        </xsl:variable>
+        <xsl:if test="contains($type,':') and $ns != $targetNamespace and string($importPackage) != ''">
           <xsl:value-of select="substring-before($type,':')"/>
           <xsl:text>.</xsl:text>
         </xsl:if>

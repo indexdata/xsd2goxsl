@@ -97,6 +97,51 @@ func TestValidateTags(t *testing.T) {
 	assertNotContains(t, out, `Phone string `+"`"+`xml:"phone,omitempty" validate:"required"`+"`")
 }
 
+func TestNamespaceImports(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	schemaFile := filepath.Join(dir, "namespace-imports.xsd")
+	outputFile := filepath.Join(dir, "schema.go")
+	schema := `<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  xmlns:imp="http://example.com/imported"
+  targetNamespace="http://example.com/local">
+  <xs:import namespace="http://example.com/imported"/>
+  <xs:complexType name="holder">
+    <xs:sequence>
+      <xs:element name="remote" type="imp:remote_type"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="root" type="holder"/>
+</xs:schema>
+`
+	if err := os.WriteFile(schemaFile, []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := run([]string{
+		schemaFile,
+		outputFile,
+		"namespaceImports=http://example.com/imported=example.com/remote/pkg",
+	}, &stdout, &stderr)
+	if exitCode != 0 {
+		t.Fatalf("run failed with exit code %d: %s", exitCode, stderr.String())
+	}
+
+	generated, err := os.ReadFile(outputFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := string(generated)
+
+	assertContains(t, out, `imp "example.com/remote/pkg"`)
+	assertContains(t, out, `Remote imp.RemoteType `+"`"+`xml:"remote"`+"`")
+}
+
 func assertContains(t *testing.T, got, want string) {
 	t.Helper()
 	if !strings.Contains(got, want) {
