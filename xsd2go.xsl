@@ -822,12 +822,8 @@
 
   <xsl:template name="lookup-namespace-import-package">
     <xsl:param name="namespace"/>
-    <xsl:for-each select="str:tokenize($namespaceImports, ',')[normalize-space(substring-before(.,'=')) = $namespace][1]">
-      <xsl:variable name="ns" select="normalize-space(substring-before(.,'='))"/>
-      <xsl:if test="$namespace = $ns">
-        <xsl:value-of select="normalize-space(substring-after(.,'='))"/>
-      </xsl:if>
-    </xsl:for-each>
+    <xsl:value-of
+      select="normalize-space(substring-after(str:tokenize($namespaceImports, ',')[normalize-space(substring-before(.,'=')) = $namespace][1], '='))"/>
   </xsl:template>
 
   <xsl:template name="emit-field-tags">
