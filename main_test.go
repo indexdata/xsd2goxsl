@@ -245,6 +245,83 @@ func TestMultipleRootLimitedNamespaceGeneration(t *testing.T) {
 	assertNotContains(t, out, `XMLName xml.Name `+"`"+`xml:"http://example.com/root other"`+"`")
 }
 
+func TestRootTagConstFromRootParam(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	schemaFile := filepath.Join(dir, "root-tag-param.xsd")
+	outputFile := filepath.Join(dir, "schema.go")
+	schema := `<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="rootA">
+    <xs:complexType/>
+  </xs:element>
+  <xs:element name="rootB">
+    <xs:complexType/>
+  </xs:element>
+</xs:schema>
+`
+	if err := os.WriteFile(schemaFile, []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := run([]string{
+		schemaFile,
+		outputFile,
+		"root=rootB",
+	}, &stdout, &stderr)
+	if exitCode != 0 {
+		t.Fatalf("run failed with exit code %d: %s", exitCode, stderr.String())
+	}
+
+	generated, err := os.ReadFile(outputFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := string(generated)
+	assertContains(t, out, `ROOT_TAG = "rootB"`)
+}
+
+func TestRootTagConstDefaultsToFirstGlobalElement(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	schemaFile := filepath.Join(dir, "root-tag-default.xsd")
+	outputFile := filepath.Join(dir, "schema.go")
+	schema := `<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="firstRoot">
+    <xs:complexType/>
+  </xs:element>
+  <xs:element name="secondRoot">
+    <xs:complexType/>
+  </xs:element>
+</xs:schema>
+`
+	if err := os.WriteFile(schemaFile, []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := run([]string{
+		schemaFile,
+		outputFile,
+	}, &stdout, &stderr)
+	if exitCode != 0 {
+		t.Fatalf("run failed with exit code %d: %s", exitCode, stderr.String())
+	}
+
+	generated, err := os.ReadFile(outputFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := string(generated)
+	assertNotContains(t, out, `ROOT_TAG = "`)
+}
+
 func TestSchemaLocationMarshalXMLForSelectedRoots(t *testing.T) {
 	t.Parallel()
 
@@ -287,7 +364,7 @@ func TestSchemaLocationMarshalXMLForSelectedRoots(t *testing.T) {
 
 	assertContains(t, out, `XMLNS_XSI = "http://www.w3.org/2001/XMLSchema-instance"`)
 	assertContains(t, out, `XSI_SCHEMA_LOCATION = "http://example.com/schema-location schema.xsd"`)
-	assertContains(t, out, `TARGET_NAMESPACE = "http://example.com/schema-location"`)
+	assertNotContains(t, out, `TARGET_NAMESPACE = "`)
 	assertContains(t, out, `func (x *Root) MarshalXML(e *xml.Encoder, start xml.StartElement) error {`)
 	assertContains(t, out, `xml.Attr{Name: xml.Name{Local: "xmlns:xsi"}, Value: XMLNS_XSI},`)
 	assertContains(t, out, `xml.Attr{Name: xml.Name{Local: "xsi:schemaLocation"}, Value: XSI_SCHEMA_LOCATION},`)

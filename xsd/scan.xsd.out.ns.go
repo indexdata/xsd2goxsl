@@ -16,6 +16,10 @@ import (
   diag "github.com/indexdata/xsd2goxsl/xsd/diagnostic.xsd_test"
 )
 
+const (
+  TARGET_NAMESPACE = "http://docs.oasis-open.org/ns/search-ws/scan"
+)
+
 type ScanResponse struct {
   XMLName xml.Name `xml:"http://docs.oasis-open.org/ns/search-ws/scan scanResponse"`
   ScanResponseDefinition

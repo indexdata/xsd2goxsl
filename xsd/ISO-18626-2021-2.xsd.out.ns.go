@@ -82,6 +82,10 @@ import (
   utils "github.com/indexdata/go-utils/utils"
 )
 
+const (
+  TARGET_NAMESPACE = "http://illtransactions.org/2013/iso18626"
+)
+
 
 type ISO18626Message struct {
   XMLName xml.Name `xml:"http://illtransactions.org/2013/iso18626 ISO18626Message"`

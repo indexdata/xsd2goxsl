@@ -287,6 +287,10 @@ import (
   utils "github.com/indexdata/go-utils/utils"
 )
 
+const (
+  TARGET_NAMESPACE = "http://www.niso.org/2008/ncip"
+)
+
 
 type NCIPMessage struct {
   XMLName xml.Name `xml:"http://www.niso.org/2008/ncip NCIPMessage"`

@@ -14,6 +14,10 @@ import (
   "encoding/xml"
 )
 
+const (
+  TARGET_NAMESPACE = "http://docs.oasis-open.org/ns/search-ws/facetedResults"
+)
+
 type FacetedResults struct {
   XMLName xml.Name `xml:"http://docs.oasis-open.org/ns/search-ws/facetedResults facetedResults"`
   FacetedResultsDefinition

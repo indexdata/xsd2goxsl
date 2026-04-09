@@ -14,6 +14,10 @@ import (
   "encoding/xml"
 )
 
+const (
+  TARGET_NAMESPACE = "http://docs.oasis-open.org/ns/search-ws/xcql"
+)
+
 type Xcql struct {
   XMLName xml.Name `xml:"http://docs.oasis-open.org/ns/search-ws/xcql xcql"`
   XcqlDefinition

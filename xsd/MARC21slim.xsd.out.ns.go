@@ -7,6 +7,10 @@ import (
   "encoding/xml"
 )
 
+const (
+  TARGET_NAMESPACE = "http://www.loc.gov/MARC21/slim"
+)
+
 // 			MARCXML: The MARC 21 XML Schema
 // 			Prepared by Corey Keith
 // 			

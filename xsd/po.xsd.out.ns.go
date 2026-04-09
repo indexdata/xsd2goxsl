@@ -7,6 +7,10 @@ import (
   "encoding/xml"
 )
 
+const (
+  TARGET_NAMESPACE = "http://tempuri.org/PurchaseOrderSchema.xsd"
+)
+
 type Comment struct {
   XMLName xml.Name `xml:"http://tempuri.org/PurchaseOrderSchema.xsd comment"`
   Text string `xml:",chardata"`

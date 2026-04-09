@@ -33,6 +33,7 @@
   <xsl:param name="schemaLocation" select="''"/>
   <xsl:variable name="namespaceImportTokens" select="str:tokenize($namespaceImports, ',')"/>
   <xsl:variable name="rootTokens" select="str:tokenize($root, ',')"/>
+  <xsl:variable name="rootTag" select="normalize-space($rootTokens[1])"/>
   <xsl:variable name="schemaLocationEffective">
     <xsl:choose>
       <xsl:when test="contains(normalize-space($schemaLocation), ' ')">
@@ -93,6 +94,7 @@
     <xsl:text>)</xsl:text>
     <xsl:value-of select="$break"/>
     <xsl:value-of select="$break"/>
+    <xsl:call-template name="root-and-ns-consts"/>
     <xsl:call-template name="schema-location-consts"/>
     <xsl:apply-templates mode="global"/>
     <!-- hoist all nested non-scalar types and enums to the top level -->
@@ -108,14 +110,33 @@
     </xsl:for-each>
   </xsl:template>
 
+  <xsl:template name="root-and-ns-consts">
+    <xsl:if test="$namespaced = 'yes' or normalize-space($root) != ''">
+      <xsl:text>const (</xsl:text>
+      <xsl:value-of select="$break"/>
+      <xsl:if test="$namespaced = 'yes'">
+        <xsl:value-of select="$indent"/>
+        <xsl:text>TARGET_NAMESPACE = "</xsl:text>
+        <xsl:value-of select="$targetNamespace"/>
+        <xsl:text>"</xsl:text>
+        <xsl:value-of select="$break"/>
+      </xsl:if>
+      <xsl:if test="normalize-space($root) != ''">
+        <xsl:value-of select="$indent"/>
+        <xsl:text>ROOT_TAG = "</xsl:text>
+        <xsl:value-of select="string($rootTag)"/>
+        <xsl:text>"</xsl:text>
+        <xsl:value-of select="$break"/>
+      </xsl:if>
+      <xsl:text>)</xsl:text>
+      <xsl:value-of select="$break"/>
+      <xsl:value-of select="$break"/>
+    </xsl:if>
+  </xsl:template>
+
   <xsl:template name="schema-location-consts">
     <xsl:if test="string($schemaLocationEffective) != ''">
       <xsl:text>const (</xsl:text>
-      <xsl:value-of select="$break"/>
-      <xsl:value-of select="$indent"/>
-      <xsl:text>TARGET_NAMESPACE = "</xsl:text>
-      <xsl:value-of select="$targetNamespace"/>
-      <xsl:text>"</xsl:text>
       <xsl:value-of select="$break"/>
       <xsl:value-of select="$indent"/>
       <xsl:text>XMLNS_XSI = "http://www.w3.org/2001/XMLSchema-instance"</xsl:text>

@@ -9,6 +9,10 @@ import (
   utils "github.com/indexdata/go-utils/utils"
 )
 
+const (
+  TARGET_NAMESPACE = "http://xsd2go.xsl/family"
+)
+
 
 type Family struct {
   XMLName xml.Name `xml:"http://xsd2go.xsl/family family"`

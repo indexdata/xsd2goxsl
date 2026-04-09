@@ -19,6 +19,10 @@ import (
   scan "github.com/indexdata/xsd2goxsl/xsd/scan.xsd_test"
 )
 
+const (
+  TARGET_NAMESPACE = "http://docs.oasis-open.org/ns/search-ws/sruResponse"
+)
+
 type SearchRetrieveResponse struct {
   XMLName xml.Name `xml:"http://docs.oasis-open.org/ns/search-ws/sruResponse searchRetrieveResponse"`
   SearchRetrieveResponseDefinition
