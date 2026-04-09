@@ -30,8 +30,21 @@
   <xsl:param name="buildtag" select="''" />
   <xsl:param name="json" select="'no'"/>
   <xsl:param name="validate" select="'no'"/>
+  <xsl:param name="schemaLocation" select="''"/>
   <xsl:variable name="namespaceImportTokens" select="str:tokenize($namespaceImports, ',')"/>
   <xsl:variable name="rootTokens" select="str:tokenize($root, ',')"/>
+  <xsl:variable name="schemaLocationEffective">
+    <xsl:choose>
+      <xsl:when test="contains(normalize-space($schemaLocation), ' ')">
+        <xsl:value-of select="normalize-space($schemaLocation)"/>
+      </xsl:when>
+      <xsl:when test="normalize-space($schemaLocation) != ''">
+        <xsl:value-of select="$targetNamespace"/>
+        <xsl:text> </xsl:text>
+        <xsl:value-of select="normalize-space($schemaLocation)"/>
+      </xsl:when>
+    </xsl:choose>
+  </xsl:variable>
   <xsl:key name="simpleTypeByName" match="xs:simpleType[@name]" use="@name"/>
   <xsl:key name="complexTypeByName" match="xs:complexType[@name]" use="@name"/>
   <xsl:key name="elementByName" match="xs:element[@name]" use="@name"/>
@@ -80,6 +93,7 @@
     <xsl:text>)</xsl:text>
     <xsl:value-of select="$break"/>
     <xsl:value-of select="$break"/>
+    <xsl:call-template name="schema-location-consts"/>
     <xsl:apply-templates mode="global"/>
     <!-- hoist all nested non-scalar types and enums to the top level -->
     <xsl:for-each select="//xs:element[(@minOccurs!='1' or @maxOccurs!='1') and (xs:complexType or xs:simpleType)
@@ -92,6 +106,62 @@
         <xsl:with-param name="hoisted" select="true()"/>
       </xsl:apply-templates>
     </xsl:for-each>
+  </xsl:template>
+
+  <xsl:template name="schema-location-consts">
+    <xsl:if test="string($schemaLocationEffective) != ''">
+      <xsl:text>const (</xsl:text>
+      <xsl:value-of select="$break"/>
+      <xsl:value-of select="$indent"/>
+      <xsl:text>XMLNS_XSI = "http://www.w3.org/2001/XMLSchema-instance"</xsl:text>
+      <xsl:value-of select="$break"/>
+      <xsl:value-of select="$indent"/>
+      <xsl:text>XSI_SCHEMA_LOCATION = "</xsl:text>
+      <xsl:value-of select="string($schemaLocationEffective)"/>
+      <xsl:text>"</xsl:text>
+      <xsl:value-of select="$break"/>
+      <xsl:text>)</xsl:text>
+      <xsl:value-of select="$break"/>
+      <xsl:value-of select="$break"/>
+    </xsl:if>
+  </xsl:template>
+
+  <xsl:template name="schema-location-marshal-method">
+    <xsl:param name="name"/>
+    <xsl:if test="string($schemaLocationEffective) != '' and ($root = '' or $rootTokens[normalize-space(.) = $name])">
+      <xsl:text>func (x *</xsl:text>
+      <xsl:call-template name="convert-name">
+        <xsl:with-param name="name" select="$name"/>
+      </xsl:call-template>
+      <xsl:text>) MarshalXML(e *xml.Encoder, start xml.StartElement) error {</xsl:text>
+      <xsl:value-of select="$break"/>
+      <xsl:value-of select="$indent"/>
+      <xsl:text>type Alias </xsl:text>
+      <xsl:call-template name="convert-name">
+        <xsl:with-param name="name" select="$name"/>
+      </xsl:call-template>
+      <xsl:value-of select="$break"/>
+      <xsl:value-of select="$indent"/>
+      <xsl:text>start.Attr = append(start.Attr,</xsl:text>
+      <xsl:value-of select="$break"/>
+      <xsl:value-of select="$indent"/>
+      <xsl:value-of select="$indent"/>
+      <xsl:text>xml.Attr{Name: xml.Name{Local: "xmlns:xsi"}, Value: XMLNS_XSI},</xsl:text>
+      <xsl:value-of select="$break"/>
+      <xsl:value-of select="$indent"/>
+      <xsl:value-of select="$indent"/>
+      <xsl:text>xml.Attr{Name: xml.Name{Local: "xsi:schemaLocation"}, Value: XSI_SCHEMA_LOCATION},</xsl:text>
+      <xsl:value-of select="$break"/>
+      <xsl:value-of select="$indent"/>
+      <xsl:text>)</xsl:text>
+      <xsl:value-of select="$break"/>
+      <xsl:value-of select="$indent"/>
+      <xsl:text>return e.EncodeElement((*Alias)(x), start)</xsl:text>
+      <xsl:value-of select="$break"/>
+      <xsl:text>}</xsl:text>
+      <xsl:value-of select="$break"/>
+      <xsl:value-of select="$break"/>
+    </xsl:if>
   </xsl:template>
 
   <xsl:template name="type-imports">
@@ -126,8 +196,12 @@
 
   <!-- global elem with nested types, apply recursively -->
   <xsl:template match="xs:element[xs:complexType or xs:simpleType]" mode="global">
+    <xsl:variable name="name" select="@name" />
     <xsl:value-of select="$break"/>
     <xsl:apply-templates select="."/>
+    <xsl:call-template name="schema-location-marshal-method">
+      <xsl:with-param name="name" select="$name"/>
+    </xsl:call-template>
   </xsl:template>
 
   <!-- global elem w/o nested types, embed type and stop -->
@@ -163,6 +237,9 @@
     <xsl:text>}</xsl:text>
     <xsl:value-of select="$break"/>
     <xsl:value-of select="$break"/>
+    <xsl:call-template name="schema-location-marshal-method">
+      <xsl:with-param name="name" select="$name"/>
+    </xsl:call-template>
   </xsl:template>
 
   <xsl:template name="nest-type">

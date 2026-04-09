@@ -22,8 +22,9 @@ xsltproc xsd2go.xsl some.xsd > some.go
 The following parameters are supported (`--stringparam` in `xsltproc`):
 
 * `buildtag` //go:build tags for the generated file, default empty
-* `namespaced` if `yes` xml.Name and qualified attribute tags will use the target namespace, default `no`
-* `root` comma-separated list of possible root elements, when set, only matching elements are namespaced
+* `namespaced` if `yes` xml.Name field in global and hoisted structs and qualified attribute tags will use the target namespace, default `no`
+* `root` comma-separated list of valid root elements, when set, only matching elements get namespace declaration or schema location attributes
+* `schemaLocation` when set, generate `MarshalXML` for selected root element structs and emit schema location attributes. Can be just the schema path or a list of namespace/schema path pairs.
 * `namespaceImports` comma-separated list of `namespace-uri=package-path` mappings to use when converting `xs:import` elements to Go package imports
 * `package` Go package name, defaults to `str:tokenize(str:tokenize($targetNamespace, '/')[last()],'.')[1]`
 * `omitempty` whether to set _omitempty_ modifier on field tags for optional and repeating elements, default `yes`
