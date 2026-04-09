@@ -11,6 +11,7 @@
   <xsl:param name="indent" select="'  '"/>
   <xsl:param name="break" select="'&#10;'"/>
   <xsl:param name="namespaced" select="'no'"/>
+  <xsl:param name="root" select="''"/>
   <xsl:param name="namespaceImports" select="''"/>
   <xsl:param name="attributeForm" select="/xs:schema/@attributeFormDefault"/>
   <xsl:param name="targetNamespace" select="/xs:schema/@targetNamespace"/>
@@ -30,6 +31,7 @@
   <xsl:param name="json" select="'no'"/>
   <xsl:param name="validate" select="'no'"/>
   <xsl:variable name="namespaceImportTokens" select="str:tokenize($namespaceImports, ',')"/>
+  <xsl:variable name="rootTokens" select="str:tokenize($root, ',')"/>
   <xsl:key name="simpleTypeByName" match="xs:simpleType[@name]" use="@name"/>
   <xsl:key name="complexTypeByName" match="xs:complexType[@name]" use="@name"/>
   <xsl:key name="elementByName" match="xs:element[@name]" use="@name"/>
@@ -143,7 +145,7 @@
     <xsl:value-of select="$break"/>
     <xsl:value-of select="$indent"/>
     <xsl:text>XMLName xml.Name `xml:"</xsl:text>
-    <xsl:if test="$namespaced = 'yes'">
+    <xsl:if test="$namespaced = 'yes' and ($root = '' or $rootTokens[normalize-space(.) = $name])">
       <xsl:value-of select="$targetNamespace"/>
       <xsl:text> </xsl:text>
     </xsl:if>
@@ -391,6 +393,7 @@
     <xsl:param name="level" select="''"/>
     <xsl:param name="name"/>
     <xsl:param name="parentPtr"/>
+    <xsl:variable name="globalElementName" select="parent::xs:element/@name"/>
     <xsl:call-template name="debug">
       <xsl:with-param name="level" select="$level"/>
       <xsl:with-param name="text" select="'ComplexType'"/>
@@ -441,7 +444,11 @@
         <xsl:value-of select="$level"/>
         <xsl:value-of select="$indent"/>
         <xsl:text>XMLName xml.Name `xml:"</xsl:text>
-        <xsl:if test="$level = '' and $namespaced = 'yes'">
+        <xsl:if test="$level = ''
+                      and $namespaced = 'yes'
+                      and ($root = ''
+                           or (parent::xs:element[parent::xs:schema]
+                               and $rootTokens[normalize-space(.) = string($globalElementName)]))">
           <xsl:value-of select="$targetNamespace"/>
           <xsl:text> </xsl:text>
         </xsl:if>

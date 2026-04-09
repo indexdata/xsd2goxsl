@@ -142,6 +142,108 @@ func TestNamespaceImports(t *testing.T) {
 	assertContains(t, out, `Remote imp.RemoteType `+"`"+`xml:"remote"`+"`")
 }
 
+func TestRootLimitedNamespaceGeneration(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	schemaFile := filepath.Join(dir, "root-ns.xsd")
+	outputFile := filepath.Join(dir, "schema.go")
+	schema := `<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  targetNamespace="http://example.com/root"
+  attributeFormDefault="qualified">
+  <xs:element name="root">
+    <xs:complexType>
+      <xs:attribute name="id" type="xs:string" use="required"/>
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="other">
+    <xs:complexType>
+      <xs:attribute name="id" type="xs:string" use="required"/>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>
+`
+	if err := os.WriteFile(schemaFile, []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := run([]string{
+		schemaFile,
+		outputFile,
+		"namespaced=yes",
+		"root=root",
+	}, &stdout, &stderr)
+	if exitCode != 0 {
+		t.Fatalf("run failed with exit code %d: %s", exitCode, stderr.String())
+	}
+
+	generated, err := os.ReadFile(outputFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := string(generated)
+
+	assertContains(t, out, `type Root struct {`)
+	assertContains(t, out, `XMLName xml.Name `+"`"+`xml:"http://example.com/root root"`+"`")
+	assertContains(t, out, `type Other struct {`)
+	assertContains(t, out, `XMLName xml.Name `+"`"+`xml:"other"`+"`")
+	assertContains(t, out, `Id string `+"`"+`xml:"http://example.com/root id,attr"`+"`")
+	assertNotContains(t, out, `XMLName xml.Name `+"`"+`xml:"http://example.com/root other"`+"`")
+}
+
+func TestMultipleRootLimitedNamespaceGeneration(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	schemaFile := filepath.Join(dir, "multi-root-ns.xsd")
+	outputFile := filepath.Join(dir, "schema.go")
+	schema := `<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  targetNamespace="http://example.com/root">
+  <xs:element name="rootA">
+    <xs:complexType/>
+  </xs:element>
+  <xs:element name="rootB">
+    <xs:complexType/>
+  </xs:element>
+  <xs:element name="other">
+    <xs:complexType/>
+  </xs:element>
+</xs:schema>
+`
+	if err := os.WriteFile(schemaFile, []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := run([]string{
+		schemaFile,
+		outputFile,
+		"namespaced=yes",
+		"root=rootA, rootB",
+	}, &stdout, &stderr)
+	if exitCode != 0 {
+		t.Fatalf("run failed with exit code %d: %s", exitCode, stderr.String())
+	}
+
+	generated, err := os.ReadFile(outputFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := string(generated)
+
+	assertContains(t, out, `XMLName xml.Name `+"`"+`xml:"http://example.com/root rootA"`+"`")
+	assertContains(t, out, `XMLName xml.Name `+"`"+`xml:"http://example.com/root rootB"`+"`")
+	assertContains(t, out, `XMLName xml.Name `+"`"+`xml:"other"`+"`")
+	assertNotContains(t, out, `XMLName xml.Name `+"`"+`xml:"http://example.com/root other"`+"`")
+}
+
 func assertContains(t *testing.T, got, want string) {
 	t.Helper()
 	if !strings.Contains(got, want) {
