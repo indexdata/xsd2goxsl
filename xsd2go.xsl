@@ -4,7 +4,9 @@
     xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
     xmlns:xs="http://www.w3.org/2001/XMLSchema"
     xmlns:str="http://exslt.org/strings"
-    xmlns:exsl="http://exslt.org/common">
+    xmlns:exsl="http://exslt.org/common"
+    xmlns:set="http://exslt.org/sets"
+    xmlns:math="http://exslt.org/math">
 
   <xsl:output method="text" encoding="UTF-8"/>
   <xsl:strip-space elements="*" />
@@ -31,6 +33,7 @@
   <xsl:param name="json" select="'no'"/>
   <xsl:param name="validate" select="'no'"/>
   <xsl:param name="schemaLocation" select="''"/>
+  <xsl:variable name="schemaRoot" select="/xs:schema"/>
   <xsl:variable name="namespaceImportTokens" select="str:tokenize($namespaceImports, ',')"/>
   <xsl:variable name="rootTokens" select="str:tokenize($root, ',')"/>
   <xsl:variable name="rootTag" select="normalize-space($rootTokens[1])"/>
@@ -98,7 +101,7 @@
     <xsl:call-template name="schema-location-consts"/>
     <xsl:apply-templates mode="global"/>
     <!-- hoist all nested non-scalar types and enums to the top level -->
-    <xsl:for-each select="//xs:element[(@minOccurs!='1' or @maxOccurs!='1') and (xs:complexType or xs:simpleType)
+    <xsl:for-each select="//xs:element[((@minOccurs!='1' or @maxOccurs!='1') or ancestor::xs:choice) and (xs:complexType or xs:simpleType)
                                         or (not(parent::xs:schema) and xs:simpleType/xs:restriction/xs:enumeration)]">
       <xsl:call-template name="debug">
         <xsl:with-param name="text" select="'Hoisted element'"/>
@@ -442,6 +445,251 @@
     <xsl:apply-templates>
       <xsl:with-param name="name" select="$name"/>
     </xsl:apply-templates>
+  </xsl:template>
+
+  <xsl:template name="resolved-occurs-value">
+    <xsl:param name="value"/>
+    <xsl:choose>
+      <xsl:when test="string($value) != ''">
+        <xsl:value-of select="$value"/>
+      </xsl:when>
+      <xsl:otherwise>1</xsl:otherwise>
+    </xsl:choose>
+  </xsl:template>
+
+  <xsl:template name="merge-field-ptr">
+    <xsl:param name="fields"/>
+    <xsl:choose>
+      <xsl:when test="$fields[@ptr = '[]']">[]</xsl:when>
+      <xsl:when test="$fields[@ptr = '*']">*</xsl:when>
+      <xsl:otherwise></xsl:otherwise>
+    </xsl:choose>
+  </xsl:template>
+
+  <xsl:template name="merge-field-min-occurs">
+    <xsl:param name="fields"/>
+    <xsl:choose>
+      <!-- Fields collected from inside a choice branch are field-optional once flattened. -->
+      <xsl:when test="$fields[@inChoice = 'yes']">0</xsl:when>
+      <xsl:when test="$fields[@minOccurs = '0']">0</xsl:when>
+      <xsl:otherwise>
+        <xsl:value-of select="math:min($fields/@minOccurs)"/>
+      </xsl:otherwise>
+    </xsl:choose>
+  </xsl:template>
+
+  <xsl:template name="merge-field-max-occurs">
+    <xsl:param name="fields"/>
+    <xsl:choose>
+      <xsl:when test="$fields[@maxOccurs = 'unbounded']">unbounded</xsl:when>
+      <xsl:otherwise>
+        <xsl:value-of select="math:max($fields/@maxOccurs)"/>
+      </xsl:otherwise>
+    </xsl:choose>
+  </xsl:template>
+
+  <xsl:template name="emit-field-record">
+    <xsl:param name="fieldName"/>
+    <xsl:param name="fieldType"/>
+    <xsl:param name="keyType" select="$fieldType"/>
+    <xsl:param name="xmlName" select="$fieldName"/>
+    <xsl:param name="jsonName" select="$fieldName"/>
+    <xsl:param name="parentPtr"/>
+    <xsl:param name="inChoice" select="'no'"/>
+    <xsl:param name="minOccurs" select="@minOccurs"/>
+    <xsl:param name="maxOccurs" select="@maxOccurs"/>
+    <!-- Synthetic field records are collected under sequence/choice containers and
+         merged before any Go field line is rendered. The key identifies logical
+         field identity, while the remaining attributes preserve enough source
+         metadata to rebuild type shape and validation after merge. -->
+    <xsl:variable name="typeScalar">
+      <xsl:call-template name="convert-type">
+        <xsl:with-param name="ptr" select="''"/>
+        <xsl:with-param name="type" select="$fieldType"/>
+      </xsl:call-template>
+    </xsl:variable>
+    <xsl:variable name="typeOptional">
+      <xsl:call-template name="convert-type">
+        <xsl:with-param name="ptr" select="'*'"/>
+        <xsl:with-param name="type" select="$fieldType"/>
+      </xsl:call-template>
+    </xsl:variable>
+    <xsl:variable name="typeArray">
+      <xsl:call-template name="convert-type">
+        <xsl:with-param name="ptr" select="'[]'"/>
+        <xsl:with-param name="type" select="$fieldType"/>
+      </xsl:call-template>
+    </xsl:variable>
+    <xsl:variable name="ptr">
+      <xsl:call-template name="get-cardinality">
+        <xsl:with-param name="minOccurs" select="$minOccurs"/>
+        <xsl:with-param name="maxOccurs" select="$maxOccurs"/>
+        <xsl:with-param name="parentPtr" select="$parentPtr"/>
+        <xsl:with-param name="container" select="'element'"/>
+      </xsl:call-template>
+    </xsl:variable>
+    <field>
+      <xsl:attribute name="key">
+        <xsl:value-of select="$fieldName"/>
+        <xsl:text>|</xsl:text>
+        <xsl:value-of select="$keyType"/>
+        <xsl:text>|</xsl:text>
+        <xsl:value-of select="$xmlName"/>
+        <xsl:text>|</xsl:text>
+        <xsl:value-of select="$jsonName"/>
+      </xsl:attribute>
+      <xsl:attribute name="name">
+        <xsl:value-of select="$fieldName"/>
+      </xsl:attribute>
+      <xsl:attribute name="type">
+        <xsl:value-of select="$fieldType"/>
+      </xsl:attribute>
+      <xsl:attribute name="typeScalar">
+        <xsl:value-of select="string($typeScalar)"/>
+      </xsl:attribute>
+      <xsl:attribute name="typeOptional">
+        <xsl:value-of select="string($typeOptional)"/>
+      </xsl:attribute>
+      <xsl:attribute name="typeArray">
+        <xsl:value-of select="string($typeArray)"/>
+      </xsl:attribute>
+      <xsl:attribute name="xml">
+        <xsl:value-of select="$xmlName"/>
+      </xsl:attribute>
+      <xsl:attribute name="json">
+        <xsl:value-of select="$jsonName"/>
+      </xsl:attribute>
+      <xsl:attribute name="ptr">
+        <xsl:value-of select="string($ptr)"/>
+      </xsl:attribute>
+      <xsl:attribute name="inChoice">
+        <xsl:value-of select="$inChoice"/>
+      </xsl:attribute>
+      <xsl:attribute name="minOccurs">
+        <xsl:call-template name="resolved-occurs-value">
+          <xsl:with-param name="value" select="$minOccurs"/>
+        </xsl:call-template>
+      </xsl:attribute>
+      <xsl:attribute name="maxOccurs">
+        <xsl:call-template name="resolved-occurs-value">
+          <xsl:with-param name="value" select="$maxOccurs"/>
+        </xsl:call-template>
+      </xsl:attribute>
+    </field>
+  </xsl:template>
+
+  <xsl:template match="xs:element[xs:complexType or xs:simpleType]" mode="collect-fields">
+    <xsl:param name="parentPtr"/>
+    <xsl:param name="inChoice" select="'no'"/>
+    <xsl:variable name="fieldType">
+      <xsl:choose>
+        <!-- Inline scalar restrictions render as their underlying scalar type,
+             not as a named local type. Enum-backed simple types still use the
+             element name so the generated enum type is preserved. -->
+        <xsl:when test="xs:simpleType/xs:restriction[not(xs:enumeration)]/@base">
+          <xsl:value-of select="xs:simpleType/xs:restriction/@base"/>
+        </xsl:when>
+        <xsl:otherwise>
+          <xsl:value-of select="@name"/>
+        </xsl:otherwise>
+      </xsl:choose>
+    </xsl:variable>
+    <xsl:call-template name="emit-field-record">
+      <xsl:with-param name="fieldName" select="@name"/>
+      <xsl:with-param name="fieldType" select="string($fieldType)"/>
+      <xsl:with-param name="parentPtr" select="$parentPtr"/>
+      <xsl:with-param name="inChoice" select="$inChoice"/>
+    </xsl:call-template>
+  </xsl:template>
+
+  <xsl:template match="xs:element[not(xs:complexType or xs:simpleType)]" mode="collect-fields">
+    <xsl:param name="parentPtr"/>
+    <xsl:param name="inChoice" select="'no'"/>
+    <xsl:variable name="name" select="@name" />
+    <xsl:variable name="type" select="@type" />
+    <xsl:variable name="locRef">
+      <xsl:call-template name="strip-prefix">
+        <xsl:with-param name="name" select="@ref"/>
+      </xsl:call-template>
+    </xsl:variable>
+    <xsl:variable name="fieldName">
+      <xsl:choose>
+        <xsl:when test="@ref">
+          <xsl:value-of select="string($locRef)"/>
+        </xsl:when>
+        <xsl:otherwise>
+          <xsl:value-of select="$name"/>
+        </xsl:otherwise>
+      </xsl:choose>
+    </xsl:variable>
+    <xsl:variable name="refType" select="$schemaRoot/xs:element[@name=$locRef]/@type"/>
+    <xsl:variable name="fieldType">
+      <xsl:choose>
+        <xsl:when test="@ref and $refType">
+          <xsl:value-of select="$refType"/>
+        </xsl:when>
+        <xsl:when test="@ref">
+          <xsl:value-of select="@ref"/>
+        </xsl:when>
+        <xsl:otherwise>
+          <xsl:value-of select="$type"/>
+        </xsl:otherwise>
+      </xsl:choose>
+    </xsl:variable>
+    <xsl:call-template name="emit-field-record">
+      <xsl:with-param name="fieldName" select="string($fieldName)"/>
+      <xsl:with-param name="fieldType" select="string($fieldType)"/>
+      <xsl:with-param name="keyType" select="string($fieldType)"/>
+      <xsl:with-param name="parentPtr" select="$parentPtr"/>
+      <xsl:with-param name="inChoice" select="$inChoice"/>
+    </xsl:call-template>
+  </xsl:template>
+
+  <xsl:template match="xs:sequence|xs:choice" mode="collect-fields">
+    <xsl:param name="parentPtr"/>
+    <xsl:param name="inChoice" select="'no'"/>
+    <xsl:variable name="container">
+      <xsl:choose>
+        <xsl:when test="self::xs:sequence">sequence</xsl:when>
+        <xsl:otherwise>choice</xsl:otherwise>
+      </xsl:choose>
+    </xsl:variable>
+    <xsl:variable name="ptr">
+      <xsl:call-template name="get-cardinality">
+        <xsl:with-param name="minOccurs" select="@minOccurs"/>
+        <xsl:with-param name="maxOccurs" select="@maxOccurs"/>
+        <xsl:with-param name="parentPtr" select="$parentPtr"/>
+        <xsl:with-param name="container" select="string($container)"/>
+      </xsl:call-template>
+    </xsl:variable>
+    <xsl:apply-templates select="node()" mode="collect-fields">
+      <xsl:with-param name="parentPtr" select="string($ptr)"/>
+      <xsl:with-param name="inChoice">
+        <xsl:choose>
+          <xsl:when test="self::xs:choice">yes</xsl:when>
+          <xsl:otherwise>
+            <xsl:value-of select="$inChoice"/>
+          </xsl:otherwise>
+        </xsl:choose>
+      </xsl:with-param>
+    </xsl:apply-templates>
+  </xsl:template>
+
+  <xsl:template match="comment()" mode="collect-fields">
+    <xsl:for-each select="str:tokenize(., $break)">
+      <comment-line-node text="{.}"/>
+    </xsl:for-each>
+  </xsl:template>
+
+  <xsl:template match="xs:any" mode="collect-fields">
+    <any-node/>
+  </xsl:template>
+
+  <xsl:template match="text()" mode="collect-fields"/>
+
+  <xsl:template match="*" mode="collect-fields">
+    <xsl:param name="parentPtr"/>
+    <xsl:param name="inChoice" select="'no'"/>
   </xsl:template>
 
   <xsl:template match="xs:attribute">
@@ -876,15 +1124,6 @@
     </xsl:for-each>
   </xsl:template>
 
-  <xsl:template name="distinct-lines">
-    <xsl:param name="text"/>
-    <xsl:variable name="lines" select="str:tokenize($text,$break)"/>
-    <xsl:for-each select="$lines[not(text() = preceding::text())]">
-      <xsl:value-of select="."/>
-      <xsl:value-of select="$break"/>
-    </xsl:for-each>
-  </xsl:template>
-
   <xsl:template name="emit-container">
     <xsl:param name="container"/>
     <xsl:param name="level" select="''"/>
@@ -898,13 +1137,15 @@
         <xsl:with-param name="container" select="$container"/>
       </xsl:call-template>
     </xsl:variable>
-    <xsl:variable name="fields">
-      <xsl:apply-templates>
-        <xsl:with-param name="level" select="$level"/>
-        <xsl:with-param name="name" select="$name"/>
-        <xsl:with-param name="parentPtr" select="$ptr"/>
-      </xsl:apply-templates>
+    <xsl:variable name="fieldRecords">
+      <fields>
+        <xsl:apply-templates select="node()" mode="collect-fields">
+          <xsl:with-param name="parentPtr" select="$ptr"/>
+        </xsl:apply-templates>
+      </fields>
     </xsl:variable>
+    <xsl:variable name="recordNodes" select="exsl:node-set($fieldRecords)/fields/*"/>
+    <xsl:variable name="fieldNodes" select="$recordNodes[self::field]"/>
     <xsl:variable name="debugText">
       <xsl:choose>
         <xsl:when test="$container = 'sequence'">
@@ -919,10 +1160,90 @@
       <xsl:with-param name="level" select="$level"/>
       <xsl:with-param name="text" select="string($debugText)"/>
     </xsl:call-template>
-    <!-- nested choices can still render duplicate fields -->
-    <xsl:call-template name="distinct-lines">
-      <xsl:with-param name="text" select="$fields"/>
+    <xsl:for-each select="$recordNodes">
+      <xsl:choose>
+        <xsl:when test="self::comment-line-node">
+          <xsl:value-of select="$level"/>
+          <xsl:text>// </xsl:text>
+          <xsl:value-of select="@text"/>
+          <xsl:value-of select="$break"/>
+        </xsl:when>
+        <xsl:when test="self::any-node">
+          <xsl:value-of select="$level"/>
+          <xsl:text>XMLContent []byte `xml:",innerxml</xsl:text>
+          <xsl:if test="$json = 'yes'">
+            <xsl:text>" json:"#content</xsl:text>
+          </xsl:if>
+          <xsl:text>"`</xsl:text>
+          <xsl:value-of select="$break"/>
+        </xsl:when>
+        <xsl:when test="self::field and not(@key = preceding-sibling::field/@key)">
+          <xsl:call-template name="render-merged-field">
+            <xsl:with-param name="level" select="$level"/>
+            <xsl:with-param name="fields" select="$fieldNodes[@key = current()/@key]"/>
+          </xsl:call-template>
+        </xsl:when>
+      </xsl:choose>
+    </xsl:for-each>
+  </xsl:template>
+
+  <xsl:template name="render-merged-field">
+    <xsl:param name="level"/>
+    <xsl:param name="fields"/>
+    <xsl:variable name="field" select="$fields[1]"/>
+    <xsl:variable name="ptr">
+      <xsl:call-template name="merge-field-ptr">
+        <xsl:with-param name="fields" select="$fields"/>
+      </xsl:call-template>
+    </xsl:variable>
+    <xsl:variable name="minOccurs">
+      <xsl:call-template name="merge-field-min-occurs">
+        <xsl:with-param name="fields" select="$fields"/>
+      </xsl:call-template>
+    </xsl:variable>
+    <xsl:variable name="maxOccurs">
+      <xsl:call-template name="merge-field-max-occurs">
+        <xsl:with-param name="fields" select="$fields"/>
+      </xsl:call-template>
+    </xsl:variable>
+    <xsl:value-of select="$level"/>
+    <xsl:call-template name="convert-name">
+      <xsl:with-param name="name" select="$field/@name"/>
     </xsl:call-template>
+    <xsl:text> </xsl:text>
+    <xsl:choose>
+      <xsl:when test="string($ptr) = '[]'">
+        <xsl:value-of select="$field/@typeArray"/>
+      </xsl:when>
+      <xsl:when test="string($ptr) = '*'">
+        <xsl:value-of select="$field/@typeOptional"/>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:value-of select="$field/@typeScalar"/>
+      </xsl:otherwise>
+    </xsl:choose>
+    <xsl:text> </xsl:text>
+    <xsl:variable name="xmlTag">
+      <xsl:call-template name="build-xml-tag">
+        <xsl:with-param name="name" select="$field/@xml"/>
+        <xsl:with-param name="omitempty" select="$omitempty = 'yes' and string($ptr) != ''"/>
+      </xsl:call-template>
+    </xsl:variable>
+    <xsl:variable name="jsonTag">
+      <xsl:call-template name="build-json-tag">
+        <xsl:with-param name="name" select="$field/@json"/>
+        <xsl:with-param name="omitempty" select="$omitempty = 'yes' and string($ptr) != ''"/>
+      </xsl:call-template>
+    </xsl:variable>
+    <xsl:call-template name="emit-field-tags">
+      <xsl:with-param name="xml" select="string($xmlTag)"/>
+      <xsl:with-param name="json" select="string($jsonTag)"/>
+      <xsl:with-param name="ptr" select="string($ptr)"/>
+      <xsl:with-param name="type" select="$field/@type"/>
+      <xsl:with-param name="minOccurs" select="string($minOccurs)"/>
+      <xsl:with-param name="maxOccurs" select="string($maxOccurs)"/>
+    </xsl:call-template>
+    <xsl:value-of select="$break"/>
   </xsl:template>
 
   <xsl:template name="build-xml-tag">
@@ -960,6 +1281,8 @@
     <xsl:param name="json"/>
     <xsl:param name="ptr"/>
     <xsl:param name="type"/>
+    <xsl:param name="minOccurs" select="''"/>
+    <xsl:param name="maxOccurs" select="''"/>
     <xsl:text>`xml:"</xsl:text>
     <xsl:value-of select="$xml"/>
     <xsl:if test="$json != ''">
@@ -972,6 +1295,8 @@
           <xsl:with-param name="xml" select="$xml"/>
           <xsl:with-param name="ptr" select="$ptr"/>
           <xsl:with-param name="type" select="$type"/>
+          <xsl:with-param name="minOccurs" select="$minOccurs"/>
+          <xsl:with-param name="maxOccurs" select="$maxOccurs"/>
         </xsl:call-template>
       </xsl:variable>
       <xsl:if test="string($rules) != ''">
@@ -986,16 +1311,38 @@
     <xsl:param name="xml"/>
     <xsl:param name="ptr"/>
     <xsl:param name="type"/>
+    <xsl:param name="minOccurs" select="''"/>
+    <xsl:param name="maxOccurs" select="''"/>
     <xsl:variable name="localType">
       <xsl:call-template name="strip-prefix">
         <xsl:with-param name="name" select="$type"/>
       </xsl:call-template>
     </xsl:variable>
-    <xsl:variable name="minOccurs">
+    <xsl:variable name="effectiveMinOccurs">
       <xsl:call-template name="resolve-min-occurs"/>
     </xsl:variable>
-    <xsl:variable name="maxOccurs">
+    <xsl:variable name="effectiveMaxOccurs">
       <xsl:call-template name="resolve-max-occurs"/>
+    </xsl:variable>
+    <xsl:variable name="resolvedMinOccurs">
+      <xsl:choose>
+        <xsl:when test="$minOccurs != ''">
+          <xsl:value-of select="$minOccurs"/>
+        </xsl:when>
+        <xsl:otherwise>
+          <xsl:value-of select="string($effectiveMinOccurs)"/>
+        </xsl:otherwise>
+      </xsl:choose>
+    </xsl:variable>
+    <xsl:variable name="resolvedMaxOccurs">
+      <xsl:choose>
+        <xsl:when test="$maxOccurs != ''">
+          <xsl:value-of select="$maxOccurs"/>
+        </xsl:when>
+        <xsl:otherwise>
+          <xsl:value-of select="string($effectiveMaxOccurs)"/>
+        </xsl:otherwise>
+      </xsl:choose>
     </xsl:variable>
     <xsl:variable name="enumRule">
       <xsl:call-template name="build-enum-rule">
@@ -1016,15 +1363,15 @@
       </xsl:if>
     </xsl:variable>
     <xsl:variable name="minRule">
-      <xsl:if test="$ptr = '[]' and number($minOccurs) &gt; 0">
+      <xsl:if test="$ptr = '[]' and number($resolvedMinOccurs) &gt; 0">
         <xsl:text>min=</xsl:text>
-        <xsl:value-of select="$minOccurs"/>
+        <xsl:value-of select="$resolvedMinOccurs"/>
       </xsl:if>
     </xsl:variable>
     <xsl:variable name="maxRule">
-      <xsl:if test="$ptr = '[]' and number($maxOccurs) &gt; 0">
+      <xsl:if test="$ptr = '[]' and number($resolvedMaxOccurs) &gt; 0">
         <xsl:text>max=</xsl:text>
-        <xsl:value-of select="$maxOccurs"/>
+        <xsl:value-of select="$resolvedMaxOccurs"/>
       </xsl:if>
     </xsl:variable>
     <xsl:variable name="needsDive">
@@ -1037,10 +1384,10 @@
         <xsl:when test="self::xs:element[xs:complexType] or self::xs:complexType">
           <xsl:text>yes</xsl:text>
         </xsl:when>
-        <xsl:when test="$localType != '' and count(key('complexTypeByName', $localType)) &gt; 0">
+        <xsl:when test="$localType != '' and count($schemaRoot/xs:complexType[@name = string($localType)]) &gt; 0">
           <xsl:text>yes</xsl:text>
         </xsl:when>
-        <xsl:when test="$localType != '' and count(/xs:schema/xs:element[@name = string($localType)][xs:complexType]) &gt; 0">
+        <xsl:when test="$localType != '' and count($schemaRoot/xs:element[@name = string($localType)][xs:complexType]) &gt; 0">
           <xsl:text>yes</xsl:text>
         </xsl:when>
       </xsl:choose>
@@ -1061,7 +1408,7 @@
     </xsl:variable>
     <xsl:variable name="hasExtraRules" select="string($minRule) != '' or string($maxRule) != '' or string($valueRule) != '' or string($diveRule) != ''"/>
     <xsl:variable name="optionalRule">
-      <xsl:if test="((self::xs:attribute and (not(@use) or @use = 'optional')) or (not(self::xs:attribute) and $minOccurs = '0')) and $hasExtraRules">
+      <xsl:if test="((self::xs:attribute and (not(@use) or @use = 'optional')) or (not(self::xs:attribute) and $resolvedMinOccurs = '0')) and $hasExtraRules">
         <xsl:text>omitempty</xsl:text>
       </xsl:if>
     </xsl:variable>
@@ -1090,8 +1437,8 @@
         <xsl:when test="self::xs:restriction and xs:enumeration">
           <xsl:apply-templates select="xs:enumeration" mode="enum-value"/>
         </xsl:when>
-        <xsl:when test="$type != '' and key('simpleTypeByName', $type)/xs:restriction/xs:enumeration">
-          <xsl:apply-templates select="key('simpleTypeByName', $type)/xs:restriction/xs:enumeration" mode="enum-value"/>
+        <xsl:when test="$type != '' and $schemaRoot/xs:simpleType[@name = string($type)]/xs:restriction/xs:enumeration">
+          <xsl:apply-templates select="$schemaRoot/xs:simpleType[@name = string($type)]/xs:restriction/xs:enumeration" mode="enum-value"/>
         </xsl:when>
       </xsl:choose>
     </xsl:variable>
@@ -1137,9 +1484,9 @@
       </xsl:call-template>
     </xsl:variable>
     <xsl:choose>
-      <xsl:when test="key('simpleTypeByName', $resolvedType)/xs:restriction/@base">
+      <xsl:when test="$schemaRoot/xs:simpleType[@name = string($resolvedType)]/xs:restriction/@base">
         <xsl:call-template name="is-string-like-scalar">
-          <xsl:with-param name="type" select="key('simpleTypeByName', $resolvedType)/xs:restriction/@base"/>
+          <xsl:with-param name="type" select="$schemaRoot/xs:simpleType[@name = string($resolvedType)]/xs:restriction/@base"/>
         </xsl:call-template>
       </xsl:when>
       <xsl:when test="string($stringLikeBuiltin) = 'yes'">

@@ -96,6 +96,108 @@ func TestValidateTags(t *testing.T) {
 	assertContains(t, out, `Phone string `+"`"+`xml:"phone,omitempty"`+"`")
 	assertNotContains(t, out, `Email string `+"`"+`xml:"email,omitempty" validate:"required"`+"`")
 	assertNotContains(t, out, `Phone string `+"`"+`xml:"phone,omitempty" validate:"required"`+"`")
+	assertNotContains(t, out, `Email string `+"`"+`xml:"email,omitempty" validate:"min=1"`+"`")
+	assertNotContains(t, out, `Phone string `+"`"+`xml:"phone,omitempty" validate:"min=1"`+"`")
+}
+
+func TestValidateTagsMergeDuplicateChoiceFields(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	schemaFile := filepath.Join(dir, "duplicate-choice-fields.xsd")
+	outputFile := filepath.Join(dir, "schema.go")
+	schema := `<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://example.com/choice-merge">
+  <xs:element name="ItemId" type="xs:string"/>
+  <xs:element name="BibliographicId" type="xs:string"/>
+  <xs:element name="requestItem">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:choice>
+          <xs:element ref="ItemId" maxOccurs="unbounded"/>
+          <xs:sequence>
+            <xs:element ref="BibliographicId" maxOccurs="unbounded"/>
+            <xs:element ref="ItemId" minOccurs="0" maxOccurs="unbounded"/>
+          </xs:sequence>
+        </xs:choice>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>
+`
+	if err := os.WriteFile(schemaFile, []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := run([]string{schemaFile, outputFile, "validate=yes"}, &stdout, &stderr)
+	if exitCode != 0 {
+		t.Fatalf("run failed with exit code %d: %s", exitCode, stderr.String())
+	}
+
+	generated, err := os.ReadFile(outputFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := string(generated)
+
+	assertContains(t, out, `ItemId []string `+"`"+`xml:"ItemId,omitempty"`+"`")
+	assertContains(t, out, `BibliographicId []string `+"`"+`xml:"BibliographicId,omitempty"`+"`")
+	assertNotContains(t, out, `BibliographicId []string `+"`"+`xml:"BibliographicId,omitempty" validate:"min=1"`+"`")
+	if strings.Count(out, `ItemId []string `+"`"+`xml:"ItemId,omitempty"`) != 1 {
+		t.Fatalf("expected exactly one merged ItemId field, got output:\n%s", out)
+	}
+}
+
+func TestValidateTagsChoiceBranchFieldsBecomeOptional(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	schemaFile := filepath.Join(dir, "choice-branch-fields.xsd")
+	outputFile := filepath.Join(dir, "schema.go")
+	schema := `<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="http://example.com/choice-branch-fields">
+  <xs:element name="root">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="header" type="xs:string"/>
+        <xs:choice>
+          <xs:element name="itemId" type="xs:string"/>
+          <xs:sequence>
+            <xs:element name="bibliographicId" type="xs:string"/>
+            <xs:element name="requestId" type="xs:string"/>
+          </xs:sequence>
+        </xs:choice>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>
+`
+	if err := os.WriteFile(schemaFile, []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := run([]string{schemaFile, outputFile, "validate=yes"}, &stdout, &stderr)
+	if exitCode != 0 {
+		t.Fatalf("run failed with exit code %d: %s", exitCode, stderr.String())
+	}
+
+	generated, err := os.ReadFile(outputFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := string(generated)
+
+	assertContains(t, out, `Header string `+"`"+`xml:"header" validate:"required"`+"`")
+	assertContains(t, out, `ItemId string `+"`"+`xml:"itemId,omitempty"`+"`")
+	assertContains(t, out, `BibliographicId string `+"`"+`xml:"bibliographicId,omitempty"`+"`")
+	assertContains(t, out, `RequestId string `+"`"+`xml:"requestId,omitempty"`+"`")
+	assertNotContains(t, out, `ItemId string `+"`"+`xml:"itemId,omitempty" validate:"required"`+"`")
+	assertNotContains(t, out, `BibliographicId string `+"`"+`xml:"bibliographicId,omitempty" validate:"required"`+"`")
+	assertNotContains(t, out, `RequestId string `+"`"+`xml:"requestId,omitempty" validate:"required"`+"`")
 }
 
 func TestNamespaceImports(t *testing.T) {

@@ -42,7 +42,9 @@ type SearchRetrieveResponseDefinition struct {
   NumberOfRecords uint64 `xml:"numberOfRecords,omitempty" json:"numberOfRecords,omitempty"`
   ResultSetId string `xml:"resultSetId,omitempty" json:"resultSetId,omitempty"`
   ResultSetIdleTime uint64 `xml:"resultSetIdleTime,omitempty" json:"resultSetIdleTime,omitempty"`
+  //  ******
   //                       resultSetIdleTime is for use in version 1.2 or earlier. It is removed in version 2.0.
+  //                   ******
   Records *RecordsDefinition `xml:"records,omitempty" json:"records,omitempty"`
   NextRecordPosition uint64 `xml:"nextRecordPosition,omitempty" json:"nextRecordPosition,omitempty"`
   EchoedSearchRetrieveRequest *EchoedSearchRetrieveRequestDefinition `xml:"echoedSearchRetrieveRequest,omitempty" json:"echoedSearchRetrieveRequest,omitempty"`
@@ -53,7 +55,9 @@ type SearchRetrieveResponseDefinition struct {
   //                  
   XMLContent []byte `xml:",innerxml" json:"#content"`
   ResultSetTTL uint64 `xml:"resultSetTTL,omitempty" json:"resultSetTTL,omitempty"`
+  //  ******
   //                       resultSetTTL replaces resultSetIdleTime in version 2.0.
+  //                   ******
   ResultCountPrecision []string `xml:"resultCountPrecision,omitempty" json:"resultCountPrecision,omitempty"`
   FacetedResults []facet.FacetedResultsDefinition `xml:"facetedResults,omitempty" json:"facetedResults,omitempty"`
   SearchResultAnalysis []sra.SearchResultAnalysisDefinition `xml:"searchResultAnalysis,omitempty" json:"searchResultAnalysis,omitempty"`

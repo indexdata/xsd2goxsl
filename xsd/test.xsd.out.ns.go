@@ -19,15 +19,12 @@ type Family struct {
   Father *Adult `xml:"father,omitempty"`
   Mother *Adult `xml:"mother,omitempty"`
   Children []Children `xml:"children,omitempty"`
-  FavChild struct {
-    XMLName xml.Name `xml:"favChild"`
-    FavChild Person `xml:"favChild"`
-  }
+  FavChild *FavChild `xml:"favChild,omitempty"`
   GrandmaMom *Adult `xml:"grandma_mom,omitempty"`
   GrandpaMom *Adult `xml:"grandpa_mom,omitempty"`
   GrandmaDad *Adult `xml:"grandma_dad,omitempty"`
   GrandpaDad *Adult `xml:"grandpa_dad,omitempty"`
-  IncomeLevel IncomeLevel `xml:"incomeLevel"`
+  IncomeLevel *IncomeLevel `xml:"incomeLevel,omitempty"`
   Name utils.PrefixAttr `xml:"http://xsd2go.xsl/family name,attr"`
 }
 
@@ -70,6 +67,12 @@ type ElemWithAttr struct {
 type Children struct {
   XMLName xml.Name `xml:"http://xsd2go.xsl/family children"`
   Child []Person `xml:"child,omitempty"`
+}
+
+
+type FavChild struct {
+  XMLName xml.Name `xml:"http://xsd2go.xsl/family favChild"`
+  FavChild Person `xml:"favChild"`
 }
 
 

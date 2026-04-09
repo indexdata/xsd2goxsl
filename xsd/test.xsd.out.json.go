@@ -15,15 +15,12 @@ type Family struct {
   Father *Adult `xml:"father,omitempty" json:"father,omitempty"`
   Mother *Adult `xml:"mother,omitempty" json:"mother,omitempty"`
   Children []Children `xml:"children,omitempty" json:"children,omitempty"`
-  FavChild struct {
-    XMLName xml.Name `xml:"favChild" json:"-"`
-    FavChild Person `xml:"favChild" json:"favChild"`
-  }
+  FavChild *FavChild `xml:"favChild,omitempty" json:"favChild,omitempty"`
   GrandmaMom *Adult `xml:"grandma_mom,omitempty" json:"grandma_mom,omitempty"`
   GrandpaMom *Adult `xml:"grandpa_mom,omitempty" json:"grandpa_mom,omitempty"`
   GrandmaDad *Adult `xml:"grandma_dad,omitempty" json:"grandma_dad,omitempty"`
   GrandpaDad *Adult `xml:"grandpa_dad,omitempty" json:"grandpa_dad,omitempty"`
-  IncomeLevel IncomeLevel `xml:"incomeLevel" json:"incomeLevel"`
+  IncomeLevel *IncomeLevel `xml:"incomeLevel,omitempty" json:"incomeLevel,omitempty"`
   Name utils.PrefixAttr `xml:"name,attr" json:"@name"`
 }
 
@@ -66,6 +63,12 @@ type ElemWithAttr struct {
 type Children struct {
   XMLName xml.Name `xml:"children" json:"-"`
   Child []Person `xml:"child,omitempty" json:"child,omitempty"`
+}
+
+
+type FavChild struct {
+  XMLName xml.Name `xml:"favChild" json:"-"`
+  FavChild Person `xml:"favChild" json:"favChild"`
 }
 
 
