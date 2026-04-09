@@ -113,6 +113,11 @@
       <xsl:text>const (</xsl:text>
       <xsl:value-of select="$break"/>
       <xsl:value-of select="$indent"/>
+      <xsl:text>TARGET_NAMESPACE = "</xsl:text>
+      <xsl:value-of select="$targetNamespace"/>
+      <xsl:text>"</xsl:text>
+      <xsl:value-of select="$break"/>
+      <xsl:value-of select="$indent"/>
       <xsl:text>XMLNS_XSI = "http://www.w3.org/2001/XMLSchema-instance"</xsl:text>
       <xsl:value-of select="$break"/>
       <xsl:value-of select="$indent"/>
@@ -140,6 +145,28 @@
       <xsl:call-template name="convert-name">
         <xsl:with-param name="name" select="$name"/>
       </xsl:call-template>
+      <xsl:value-of select="$break"/>
+      <xsl:value-of select="$indent"/>
+      <xsl:text>if start.Name.Local == "" || start.Name.Local == "</xsl:text>
+      <xsl:call-template name="convert-name">
+        <xsl:with-param name="name" select="$name"/>
+      </xsl:call-template>
+      <xsl:text>" {</xsl:text>
+      <xsl:value-of select="$break"/>
+      <xsl:value-of select="$indent"/>
+      <xsl:value-of select="$indent"/>
+      <xsl:text>start.Name.Local = "</xsl:text>
+      <xsl:value-of select="$name"/>
+      <xsl:text>"</xsl:text>
+      <xsl:value-of select="$break"/>
+      <xsl:if test="$namespaced = 'yes'">
+        <xsl:value-of select="$indent"/>
+        <xsl:value-of select="$indent"/>
+        <xsl:text>start.Name.Space = TARGET_NAMESPACE</xsl:text>
+        <xsl:value-of select="$break"/>
+      </xsl:if>
+      <xsl:value-of select="$indent"/>
+      <xsl:text>}</xsl:text>
       <xsl:value-of select="$break"/>
       <xsl:value-of select="$indent"/>
       <xsl:text>start.Attr = append(start.Attr,</xsl:text>

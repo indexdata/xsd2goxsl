@@ -287,6 +287,7 @@ func TestSchemaLocationMarshalXMLForSelectedRoots(t *testing.T) {
 
 	assertContains(t, out, `XMLNS_XSI = "http://www.w3.org/2001/XMLSchema-instance"`)
 	assertContains(t, out, `XSI_SCHEMA_LOCATION = "http://example.com/schema-location schema.xsd"`)
+	assertContains(t, out, `TARGET_NAMESPACE = "http://example.com/schema-location"`)
 	assertContains(t, out, `func (x *Root) MarshalXML(e *xml.Encoder, start xml.StartElement) error {`)
 	assertContains(t, out, `xml.Attr{Name: xml.Name{Local: "xmlns:xsi"}, Value: XMLNS_XSI},`)
 	assertContains(t, out, `xml.Attr{Name: xml.Name{Local: "xsi:schemaLocation"}, Value: XSI_SCHEMA_LOCATION},`)
@@ -374,6 +375,13 @@ func TestSchemaLocationMarshalXMLRuntime(t *testing.T) {
 	if exitCode != 0 {
 		t.Fatalf("run failed with exit code %d: %s", exitCode, stderr.String())
 	}
+	generated, err := os.ReadFile(outputFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	genOut := string(generated)
+	assertContains(t, genOut, `TARGET_NAMESPACE = "http://example.com/runtime"`)
+	assertContains(t, genOut, `start.Name.Space = TARGET_NAMESPACE`)
 
 	goMod := `module example.com/runtime-test
 
@@ -415,6 +423,182 @@ func main() {
 
 	assertContains(t, xmlOut, `xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"`)
 	assertContains(t, xmlOut, `xsi:schemaLocation="http://example.com/runtime runtime.xsd"`)
+	assertContains(t, xmlOut, `<root`)
+	assertContains(t, xmlOut, `xmlns="http://example.com/runtime"`)
+}
+
+func TestSchemaLocationMarshalXMLRuntimeJSONRoundtrip(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	schemaFile := filepath.Join(dir, "runtime-schema-json.xsd")
+	genDir := filepath.Join(dir, "gen")
+	outputFile := filepath.Join(genDir, "schema.go")
+	if err := os.MkdirAll(genDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	schema := `<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  targetNamespace="http://example.com/runtime-json">
+  <xs:element name="root">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="value" type="xs:string" minOccurs="0"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>
+`
+	if err := os.WriteFile(schemaFile, []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := run([]string{
+		schemaFile,
+		outputFile,
+		"package=gen",
+		"namespaced=yes",
+		"root=root",
+		"schemaLocation=runtime-json.xsd",
+	}, &stdout, &stderr)
+	if exitCode != 0 {
+		t.Fatalf("run failed with exit code %d: %s", exitCode, stderr.String())
+	}
+
+	goMod := `module example.com/runtime-json-test
+
+go 1.22
+`
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte(goMod), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	mainGo := `package main
+
+import (
+	"encoding/json"
+	"encoding/xml"
+	"fmt"
+
+	"example.com/runtime-json-test/gen"
+)
+
+func main() {
+	var doc gen.Root
+	if err := json.Unmarshal([]byte("{\"value\":\"hello\"}"), &doc); err != nil {
+		panic(err)
+	}
+	out, err := xml.Marshal(&doc)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Print(string(out))
+}
+`
+	if err := os.WriteFile(filepath.Join(dir, "main.go"), []byte(mainGo), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := exec.Command("go", "run", ".")
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("go run failed: %v\n%s", err, string(out))
+	}
+	xmlOut := string(out)
+
+	assertContains(t, xmlOut, `<root`)
+	assertContains(t, xmlOut, `xmlns="http://example.com/runtime-json"`)
+	assertContains(t, xmlOut, `xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"`)
+	assertContains(t, xmlOut, `xsi:schemaLocation="http://example.com/runtime-json runtime-json.xsd"`)
+}
+
+func TestSchemaLocationMarshalXMLRuntimeNoNamespace(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	schemaFile := filepath.Join(dir, "runtime-schema-no-ns.xsd")
+	genDir := filepath.Join(dir, "gen")
+	outputFile := filepath.Join(genDir, "schema.go")
+	if err := os.MkdirAll(genDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	schema := `<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  targetNamespace="http://example.com/runtime-no-ns">
+  <xs:element name="root">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="value" type="xs:string" minOccurs="0"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>
+`
+	if err := os.WriteFile(schemaFile, []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := run([]string{
+		schemaFile,
+		outputFile,
+		"package=gen",
+		"namespaced=no",
+		"root=root",
+		"schemaLocation=runtime-no-ns.xsd",
+	}, &stdout, &stderr)
+	if exitCode != 0 {
+		t.Fatalf("run failed with exit code %d: %s", exitCode, stderr.String())
+	}
+
+	goMod := `module example.com/runtime-no-ns-test
+
+go 1.22
+`
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte(goMod), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	mainGo := `package main
+
+import (
+	"encoding/xml"
+	"fmt"
+
+	"example.com/runtime-no-ns-test/gen"
+)
+
+func main() {
+	doc := gen.Root{Value: "hello"}
+	out, err := xml.Marshal(&doc)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Print(string(out))
+}
+`
+	if err := os.WriteFile(filepath.Join(dir, "main.go"), []byte(mainGo), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := exec.Command("go", "run", ".")
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("go run failed: %v\n%s", err, string(out))
+	}
+	xmlOut := string(out)
+
+	assertContains(t, xmlOut, `<root`)
+	assertNotContains(t, xmlOut, `xmlns="http://example.com/runtime-no-ns"`)
+	assertContains(t, xmlOut, `xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"`)
+	assertContains(t, xmlOut, `xsi:schemaLocation="http://example.com/runtime-no-ns runtime-no-ns.xsd"`)
 }
 
 func assertContains(t *testing.T, got, want string) {
