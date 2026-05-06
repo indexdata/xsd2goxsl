@@ -239,7 +239,7 @@ func TestAnyContentValidateTags(t *testing.T) {
 	assertNotContains(t, out, `xml:",innerxml" validate:`)
 }
 
-func TestValidateDuplicateDirectFields(t *testing.T) {
+func TestValidateDuplicateDirectFieldsInValidChoice(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
@@ -273,9 +273,15 @@ func TestValidateDuplicateDirectFields(t *testing.T) {
   <xs:element name="sameRules">
     <xs:complexType>
       <xs:sequence>
-        <xs:choice>
-          <xs:element name="SameId" type="ItemId" maxOccurs="unbounded"/>
-          <xs:element name="SameId" type="ItemId" maxOccurs="unbounded"/>
+				<xs:choice>
+					<xs:sequence>
+						<xs:element name="ByBarcode" type="xs:string"/>
+						<xs:element name="SameId" type="ItemId" maxOccurs="unbounded"/>
+					</xs:sequence>
+					<xs:sequence>
+						<xs:element name="ByBibliographic" type="BibliographicId"/>
+						<xs:element name="SameId" type="ItemId" maxOccurs="unbounded"/>
+					</xs:sequence>
         </xs:choice>
       </xs:sequence>
     </xs:complexType>
