@@ -301,6 +301,11 @@
 
   <xsl:template name="nest-type">
     <xsl:param name="type"/>
+    <xsl:variable name="anyType">
+      <xsl:call-template name="is-any-type">
+        <xsl:with-param name="type" select="$type"/>
+      </xsl:call-template>
+    </xsl:variable>
     <xsl:variable name="ns">
       <xsl:call-template name="get-ns">
         <xsl:with-param name="name" select="$type"/>
@@ -312,6 +317,13 @@
       </xsl:call-template>
     </xsl:variable>
     <xsl:choose>
+      <xsl:when test="string($anyType) = 'yes'">
+        <xsl:text>XMLContent []byte `xml:",innerxml</xsl:text>
+        <xsl:if test="$json = 'yes'">
+          <xsl:text>" json:"#content</xsl:text>
+        </xsl:if>
+        <xsl:text>"`</xsl:text>
+      </xsl:when>
       <!-- embed simple type, assumes all XSD types are simple -->
       <xsl:when test="$ns = $xmlns_xsd">
         <xsl:text>Text </xsl:text>
@@ -984,8 +996,25 @@
       <xsl:when test="@type">
         <xsl:value-of select="@type"/>
       </xsl:when>
-      <xsl:otherwise>xs:anyType</xsl:otherwise>
+      <xsl:otherwise>__xsd_anyType</xsl:otherwise>
     </xsl:choose>
+  </xsl:template>
+
+  <xsl:template name="is-any-type">
+    <xsl:param name="type"/>
+    <xsl:variable name="ns">
+      <xsl:call-template name="get-ns">
+        <xsl:with-param name="name" select="$type"/>
+      </xsl:call-template>
+    </xsl:variable>
+    <xsl:variable name="t">
+      <xsl:call-template name="strip-prefix">
+        <xsl:with-param name="name" select="$type"/>
+      </xsl:call-template>
+    </xsl:variable>
+    <xsl:if test="$type = '__xsd_anyType' or ($t = 'anyType' and $ns = $xmlns_xsd)">
+      <xsl:text>yes</xsl:text>
+    </xsl:if>
   </xsl:template>
 
   <xsl:template name="lookup-namespace-import-package">
@@ -1206,7 +1235,6 @@
                   or $type = 'NMTOKEN'
                   or $type = 'NMTOKENS'
                   or $type = 'anySimpleType'
-                  or $type = 'anyType'
                   or $type = 'anyURI'
                   or $type = 'ID'
                   or $type = 'IDREF'">
@@ -1368,7 +1396,20 @@
         <xsl:with-param name="type" select="$t"/>
       </xsl:call-template>
     </xsl:variable>
+    <xsl:variable name="anyType">
+      <xsl:call-template name="is-any-type">
+        <xsl:with-param name="type" select="$type"/>
+      </xsl:call-template>
+    </xsl:variable>
     <xsl:choose>
+      <xsl:when test="string($anyType) = 'yes'">
+        <xsl:value-of select="$ptr"/>
+        <xsl:text>struct { XMLContent []byte `xml:",innerxml</xsl:text>
+        <xsl:if test="$json = 'yes'">
+          <xsl:text>" json:"#content</xsl:text>
+        </xsl:if>
+        <xsl:text>"` }</xsl:text>
+      </xsl:when>
       <xsl:when test="$ns = $xmlns_xsd">
         <xsl:choose>
           <xsl:when test="$t = 'dateTime'">

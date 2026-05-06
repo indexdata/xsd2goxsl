@@ -12,7 +12,7 @@ import (
 
 type OpacRecord struct {
   XMLName xml.Name `xml:"opacRecord" json:"-"`
-  BibliographicRecord string `xml:"bibliographicRecord" json:"bibliographicRecord"`
+  BibliographicRecord struct { XMLContent []byte `xml:",innerxml" json:"#content"` } `xml:"bibliographicRecord" json:"bibliographicRecord"`
   Holdings struct {
     XMLName xml.Name `xml:"holdings" json:"-"`
     Holding []Holding `xml:"holding,omitempty" json:"holding,omitempty"`
@@ -70,9 +70,9 @@ type Circulation struct {
     XMLName xml.Name `xml:"onHold" json:"-"`
     Value string `xml:"value,attr" json:"@value"`
   }
-  EnumAndChron string `xml:"enumAndChron,omitempty" json:"enumAndChron,omitempty"`
-  Midspine string `xml:"midspine,omitempty" json:"midspine,omitempty"`
-  TemporaryLocation string `xml:"temporaryLocation,omitempty" json:"temporaryLocation,omitempty"`
+  EnumAndChron *struct { XMLContent []byte `xml:",innerxml" json:"#content"` } `xml:"enumAndChron,omitempty" json:"enumAndChron,omitempty"`
+  Midspine *struct { XMLContent []byte `xml:",innerxml" json:"#content"` } `xml:"midspine,omitempty" json:"midspine,omitempty"`
+  TemporaryLocation *struct { XMLContent []byte `xml:",innerxml" json:"#content"` } `xml:"temporaryLocation,omitempty" json:"temporaryLocation,omitempty"`
 }
 
 

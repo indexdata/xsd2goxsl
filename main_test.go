@@ -143,6 +143,52 @@ func TestNamespaceImports(t *testing.T) {
 	assertContains(t, out, `Remote imp.RemoteType `+"`"+`xml:"remote"`+"`")
 }
 
+func TestAnyTypeUsesInnerXMLWithoutHardcodedPrefix(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	schemaFile := filepath.Join(dir, "any-type.xsd")
+	outputFile := filepath.Join(dir, "schema.go")
+	schema := `<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <xsd:element name="loose"/>
+  <xsd:element name="root">
+    <xsd:complexType>
+      <xsd:sequence>
+        <xsd:element name="payload"/>
+        <xsd:element name="explicit" type="xsd:anyType" minOccurs="0"/>
+      </xsd:sequence>
+    </xsd:complexType>
+  </xsd:element>
+</xsd:schema>
+`
+	if err := os.WriteFile(schemaFile, []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := run([]string{schemaFile, outputFile}, &stdout, &stderr)
+	if exitCode != 0 {
+		t.Fatalf("run failed with exit code %d: %s", exitCode, stderr.String())
+	}
+
+	generated, err := os.ReadFile(outputFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := string(generated)
+
+	assertContains(t, out, `package schema`)
+	assertContains(t, out, `XMLContent []byte `+"`"+`xml:",innerxml"`+"`")
+	assertContains(t, out, `Payload struct { XMLContent []byte `+"`"+`xml:",innerxml"`+"`"+` } `+"`"+`xml:"payload"`+"`")
+	assertContains(t, out, `Explicit *struct { XMLContent []byte `+"`"+`xml:",innerxml"`+"`"+` } `+"`"+`xml:"explicit,omitempty"`+"`")
+	assertNotContains(t, out, `Payload string `)
+	assertNotContains(t, out, `Explicit *string `)
+	assertNotContains(t, out, `XsdAnyType`)
+	assertNotContains(t, out, `XsAnyType`)
+}
+
 func TestRootLimitedNamespaceGeneration(t *testing.T) {
 	t.Parallel()
 
