@@ -972,7 +972,18 @@
                              or ($level = '' and not(starts-with(., $indent))))
                             and normalize-space(.) != '}'"/>
       <xsl:variable name="isStructOpener" select="contains(., ' struct {')"/>
-      <xsl:if test="not($isDirectLine) or $isStructOpener or not(. = preceding::text())">
+      <xsl:variable name="fieldName" select="substring-before(normalize-space(.), ' ')"/>
+      <xsl:variable name="isTaggedField" select="$isDirectLine and not($isStructOpener) and contains(., ' `xml:&quot;')"/>
+      <xsl:variable name="hasPriorField"
+                    select="$isTaggedField and preceding::text()[
+                              substring-before(normalize-space(.), ' ') = $fieldName
+                              and contains(., ' `xml:&quot;')
+                              and not(contains(., ' struct {'))
+                              and normalize-space(.) != '}'
+                              and (($level != '' and starts-with(., $level) and not(starts-with(substring(., string-length($level) + 1), $indent)))
+                                   or ($level = '' and not(starts-with(., $indent))))
+                            ]"/>
+      <xsl:if test="not($isDirectLine) or $isStructOpener or (not($isTaggedField) and not(. = preceding::text())) or ($isTaggedField and not($hasPriorField))">
         <xsl:value-of select="."/>
         <xsl:value-of select="$break"/>
       </xsl:if>

@@ -189,6 +189,112 @@ func TestAnyTypeUsesInnerXMLWithoutHardcodedPrefix(t *testing.T) {
 	assertNotContains(t, out, `XsAnyType`)
 }
 
+func TestAnyContentValidateTags(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	schemaFile := filepath.Join(dir, "any-validate.xsd")
+	outputFile := filepath.Join(dir, "schema.go")
+	schema := `<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <xsd:element name="root">
+    <xsd:complexType>
+      <xsd:sequence>
+        <xsd:element name="payload"/>
+        <xsd:element name="explicit" type="xsd:anyType" minOccurs="0"/>
+        <xsd:element name="wild">
+          <xsd:complexType>
+            <xsd:sequence>
+              <xsd:any processContents="lax" minOccurs="0" maxOccurs="unbounded"/>
+            </xsd:sequence>
+          </xsd:complexType>
+        </xsd:element>
+      </xsd:sequence>
+    </xsd:complexType>
+  </xsd:element>
+</xsd:schema>
+`
+	if err := os.WriteFile(schemaFile, []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := run([]string{schemaFile, outputFile, "validate=yes"}, &stdout, &stderr)
+	if exitCode != 0 {
+		t.Fatalf("run failed with exit code %d: %s", exitCode, stderr.String())
+	}
+
+	generated, err := os.ReadFile(outputFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := string(generated)
+
+	assertContains(t, out, `Payload struct { XMLContent []byte `+"`"+`xml:",innerxml"`+"`"+` } `+"`"+`xml:"payload"`+"`")
+	assertContains(t, out, `Explicit *struct { XMLContent []byte `+"`"+`xml:",innerxml"`+"`"+` } `+"`"+`xml:"explicit,omitempty"`+"`")
+	assertContains(t, out, `XMLContent []byte `+"`"+`xml:",innerxml"`+"`")
+	assertNotContains(t, out, `Payload struct { XMLContent []byte `+"`"+`xml:",innerxml"`+"`"+` } `+"`"+`xml:"payload" validate:`)
+	assertNotContains(t, out, `Explicit *struct { XMLContent []byte `+"`"+`xml:",innerxml"`+"`"+` } `+"`"+`xml:"explicit,omitempty" validate:`)
+	assertNotContains(t, out, `xml:",innerxml" validate:`)
+}
+
+func TestValidateDuplicateDirectFields(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	schemaFile := filepath.Join(dir, "validate-duplicates.xsd")
+	outputFile := filepath.Join(dir, "schema.go")
+	schema := `<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:complexType name="ItemId">
+    <xs:sequence>
+      <xs:element name="value" type="xs:string"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="BibliographicId">
+    <xs:sequence>
+      <xs:element name="value" type="xs:string"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="requestItem">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:choice>
+          <xs:element name="ItemId" type="ItemId" maxOccurs="unbounded"/>
+          <xs:sequence>
+            <xs:element name="BibliographicId" type="BibliographicId" maxOccurs="unbounded"/>
+            <xs:element name="ItemId" type="ItemId" minOccurs="0" maxOccurs="unbounded"/>
+          </xs:sequence>
+        </xs:choice>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>
+`
+	if err := os.WriteFile(schemaFile, []byte(schema), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := run([]string{schemaFile, outputFile, "validate=yes"}, &stdout, &stderr)
+	if exitCode != 0 {
+		t.Fatalf("run failed with exit code %d: %s", exitCode, stderr.String())
+	}
+
+	generated, err := os.ReadFile(outputFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := string(generated)
+
+	assertContains(t, out, `ItemId []ItemId `+"`"+`xml:"ItemId,omitempty" validate:"min=1,dive"`+"`")
+	if got := strings.Count(out, `ItemId []ItemId `+"`"+`xml:"ItemId,omitempty"`); got != 1 {
+		t.Fatalf("expected one direct ItemId field, got %d\n%s", got, out)
+	}
+}
+
 func TestRootLimitedNamespaceGeneration(t *testing.T) {
 	t.Parallel()
 
