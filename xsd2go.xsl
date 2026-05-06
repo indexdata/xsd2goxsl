@@ -15,7 +15,14 @@
   <xsl:param name="namespaceImports" select="''"/>
   <xsl:param name="attributeForm" select="/xs:schema/@attributeFormDefault"/>
   <xsl:param name="targetNamespace" select="/xs:schema/@targetNamespace"/>
-  <xsl:param name="package" select="str:tokenize(str:tokenize($targetNamespace, '/')[last()],'.')[1]"/>
+  <xsl:param name="package">
+    <xsl:choose>
+      <xsl:when test="$targetNamespace != ''">
+        <xsl:value-of select="str:tokenize(str:tokenize($targetNamespace, '/')[last()],'.')[1]"/>
+      </xsl:when>
+      <xsl:otherwise>schema</xsl:otherwise>
+    </xsl:choose>
+  </xsl:param>
   <xsl:param name="qAttrType" select="'string'"/>
   <xsl:param name="qAttrImport" select="''"/>
   <xsl:param name="dateTimeType" select="''"/>
@@ -111,10 +118,10 @@
   </xsl:template>
 
   <xsl:template name="root-and-ns-consts">
-    <xsl:if test="$namespaced = 'yes' or normalize-space($root) != ''">
+    <xsl:if test="($namespaced = 'yes' and $targetNamespace != '') or normalize-space($root) != ''">
       <xsl:text>const (</xsl:text>
       <xsl:value-of select="$break"/>
-      <xsl:if test="$namespaced = 'yes'">
+      <xsl:if test="$namespaced = 'yes' and $targetNamespace != ''">
         <xsl:value-of select="$indent"/>
         <xsl:text>TARGET_NAMESPACE = "</xsl:text>
         <xsl:value-of select="$targetNamespace"/>
@@ -180,7 +187,7 @@
       <xsl:value-of select="$name"/>
       <xsl:text>"</xsl:text>
       <xsl:value-of select="$break"/>
-      <xsl:if test="$namespaced = 'yes'">
+      <xsl:if test="$namespaced = 'yes' and $targetNamespace != ''">
         <xsl:value-of select="$indent"/>
         <xsl:value-of select="$indent"/>
         <xsl:text>start.Name.Space = TARGET_NAMESPACE</xsl:text>
@@ -255,7 +262,9 @@
   <!-- global elem w/o nested types, embed type and stop -->
   <xsl:template match="xs:element[not(xs:complexType or xs:simpleType)]" mode="global">
     <xsl:variable name="name" select="@name" />
-    <xsl:variable name="type" select="@type" />
+    <xsl:variable name="type">
+      <xsl:call-template name="effective-element-type"/>
+    </xsl:variable>
     <xsl:call-template name="debug">
       <xsl:with-param name="text" select="'Element'"/>
     </xsl:call-template>
@@ -267,7 +276,7 @@
     <xsl:value-of select="$break"/>
     <xsl:value-of select="$indent"/>
     <xsl:text>XMLName xml.Name `xml:"</xsl:text>
-    <xsl:if test="$namespaced = 'yes' and ($root = '' or $rootTokens[normalize-space(.) = $name])">
+    <xsl:if test="$namespaced = 'yes' and $targetNamespace != '' and ($root = '' or $rootTokens[normalize-space(.) = $name])">
       <xsl:value-of select="$targetNamespace"/>
       <xsl:text> </xsl:text>
     </xsl:if>
@@ -354,7 +363,9 @@
     </xsl:variable>
     <xsl:variable name="ref" select="@ref" />
     <xsl:variable name="name" select="@name" />
-    <xsl:variable name="type" select="@type" />
+    <xsl:variable name="type">
+      <xsl:call-template name="effective-element-type"/>
+    </xsl:variable>
     <xsl:call-template name="debug">
       <xsl:with-param name="level" select="$level"/>
       <xsl:with-param name="text" select="'Element'"/>
@@ -571,6 +582,7 @@
         <xsl:text>XMLName xml.Name `xml:"</xsl:text>
         <xsl:if test="$level = ''
                       and $namespaced = 'yes'
+                      and $targetNamespace != ''
                       and ($root = ''
                            or (parent::xs:element[parent::xs:schema]
                                and $rootTokens[normalize-space(.) = string($globalElementName)]))">
@@ -919,9 +931,10 @@
       <xsl:with-param name="level" select="$level"/>
       <xsl:with-param name="text" select="string($debugText)"/>
     </xsl:call-template>
-    <!-- nested choices can still render duplicate fields -->
-    <xsl:call-template name="distinct-lines">
+    <!-- nested choices can still render duplicate direct fields -->
+    <xsl:call-template name="distinct-direct-lines">
       <xsl:with-param name="text" select="$fields"/>
+      <xsl:with-param name="level" select="$level"/>
     </xsl:call-template>
   </xsl:template>
 
@@ -936,6 +949,23 @@
     </xsl:if>
   </xsl:template>
 
+  <xsl:template name="distinct-direct-lines">
+    <xsl:param name="text"/>
+    <xsl:param name="level"/>
+    <xsl:variable name="lines" select="str:tokenize($text,$break)"/>
+    <xsl:for-each select="$lines">
+      <xsl:variable name="tail" select="substring(., string-length($level) + 1)"/>
+      <xsl:variable name="isDirectLine"
+                    select="(($level != '' and starts-with(., $level) and not(starts-with($tail, $indent)))
+                             or ($level = '' and not(starts-with(., $indent))))
+                            and normalize-space(.) != '}'"/>
+      <xsl:if test="not($isDirectLine) or not(. = preceding::text())">
+        <xsl:value-of select="."/>
+        <xsl:value-of select="$break"/>
+      </xsl:if>
+    </xsl:for-each>
+  </xsl:template>
+
   <xsl:template name="build-json-tag">
     <xsl:param name="name"/>
     <xsl:param name="prefix" select="''"/>
@@ -947,6 +977,15 @@
         <xsl:text>,omitempty</xsl:text>
       </xsl:if>
     </xsl:if>
+  </xsl:template>
+
+  <xsl:template name="effective-element-type">
+    <xsl:choose>
+      <xsl:when test="@type">
+        <xsl:value-of select="@type"/>
+      </xsl:when>
+      <xsl:otherwise>xs:anyType</xsl:otherwise>
+    </xsl:choose>
   </xsl:template>
 
   <xsl:template name="lookup-namespace-import-package">
