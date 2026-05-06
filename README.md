@@ -26,7 +26,7 @@ The following parameters are supported (`--stringparam` in `xsltproc`):
 * `root` comma-separated list of valid root elements, when set, only matching elements get namespace declaration or schema location attributes
 * `schemaLocation` when set, generate `MarshalXML` for selected root element structs and emit schema location attributes. Can be just the schema path or a list of namespace/schema path pairs.
 * `namespaceImports` comma-separated list of `namespace-uri=package-path` mappings to use when converting `xs:import` elements to Go package imports
-* `package` Go package name, defaults to `str:tokenize(str:tokenize($targetNamespace, '/')[last()],'.')[1]`
+* `package` Go package name, defaults to the last component of the target namespace, or `schema` when the schema has no target namespace
 * `omitempty` whether to set _omitempty_ modifier on field tags for optional and repeating elements, default `yes`
 * `json` should json tags be generated as well, default `no`
 * `validate` should [go-playground/validator](https://github.com/go-playground/validator) tags be generated as well, default `no`
@@ -43,6 +43,8 @@ The following parameters are supported (`--stringparam` in `xsltproc`):
 * `targetNamespace` defaults to `/xs:schema/@targetNamespace`
 * `attributeForm` _qualified_ or _unqualified_, defaults to `xs:schema/@attributeFormDefault`
 * `xmlns_xsd` defaults to `http://www.w3.org/2001/XMLSchema`
+
+Elements declared with `xs:any` are generated as raw inner XML using `XMLContent []byte`. Elements with no `type`, `simpleType`, or `complexType` are treated as implicit `xs:anyType` and also preserve their nested XML content with an inner XML wrapper.
 
 You can also see rendered Go structs in the browser by prepending:
 
@@ -95,4 +97,4 @@ import (
 
 # Test
 
-There are example XSDs and corresponding generated Go models under [./xsd](xsd/).
+There are example XSDs and corresponding generated Go models under [./xsd](xsd/). The `make check` target regenerates every `xsd/*.xsd` fixture in plain, JSON, and namespaced modes, diffs the generated files against the checked-in golden outputs, then runs `go vet` and `go build` on each generated file.
