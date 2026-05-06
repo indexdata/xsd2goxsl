@@ -983,10 +983,64 @@
                               and (($level != '' and starts-with(., $level) and not(starts-with(substring(., string-length($level) + 1), $indent)))
                                    or ($level = '' and not(starts-with(., $indent))))
                             ]"/>
+      <xsl:variable name="validateRules" select="substring-before(substring-after(., ' validate:&quot;'), '&quot;')"/>
+      <xsl:variable name="hasDifferentFollowingValidate"
+                    select="$isTaggedField and contains(., ' validate:&quot;') and following::text()[
+                              substring-before(normalize-space(.), ' ') = $fieldName
+                              and contains(., ' `xml:&quot;')
+                              and not(contains(., ' struct {'))
+                              and normalize-space(.) != '}'
+                              and (($level != '' and starts-with(., $level) and not(starts-with(substring(., string-length($level) + 1), $indent)))
+                                   or ($level = '' and not(starts-with(., $indent))))
+                              and (not(contains(., ' validate:&quot;'))
+                                   or substring-before(substring-after(., ' validate:&quot;'), '&quot;') != $validateRules)
+                            ]"/>
       <xsl:if test="not($isDirectLine) or $isStructOpener or (not($isTaggedField) and not(. = preceding::text())) or ($isTaggedField and not($hasPriorField))">
-        <xsl:value-of select="."/>
+        <xsl:choose>
+          <xsl:when test="$hasDifferentFollowingValidate">
+            <xsl:call-template name="strip-occurrence-validate-rules">
+              <xsl:with-param name="line" select="."/>
+            </xsl:call-template>
+          </xsl:when>
+          <xsl:otherwise>
+            <xsl:value-of select="."/>
+          </xsl:otherwise>
+        </xsl:choose>
         <xsl:value-of select="$break"/>
       </xsl:if>
+    </xsl:for-each>
+  </xsl:template>
+
+  <xsl:template name="strip-occurrence-validate-rules">
+    <xsl:param name="line"/>
+    <xsl:variable name="before" select="substring-before($line, ' validate:&quot;')"/>
+    <xsl:variable name="validateTail" select="substring-after($line, ' validate:&quot;')"/>
+    <xsl:variable name="rules" select="substring-before($validateTail, '&quot;')"/>
+    <xsl:variable name="after" select="substring-after($validateTail, '&quot;')"/>
+    <xsl:variable name="keptRules">
+      <xsl:call-template name="drop-occurrence-rules">
+        <xsl:with-param name="rules" select="$rules"/>
+      </xsl:call-template>
+    </xsl:variable>
+    <xsl:value-of select="$before"/>
+    <xsl:if test="string($keptRules) != ''">
+      <xsl:text> validate:"</xsl:text>
+      <xsl:value-of select="string($keptRules)"/>
+      <xsl:text>"</xsl:text>
+    </xsl:if>
+    <xsl:value-of select="$after"/>
+  </xsl:template>
+
+  <xsl:template name="drop-occurrence-rules">
+    <xsl:param name="rules"/>
+    <xsl:for-each select="str:tokenize($rules, ',')[. != 'omitempty'
+                                                    and . != 'required'
+                                                    and not(starts-with(., 'min='))
+                                                    and not(starts-with(., 'max='))]">
+      <xsl:if test="position() &gt; 1">
+        <xsl:text>,</xsl:text>
+      </xsl:if>
+      <xsl:value-of select="."/>
     </xsl:for-each>
   </xsl:template>
 

@@ -270,6 +270,16 @@ func TestValidateDuplicateDirectFields(t *testing.T) {
       </xs:sequence>
     </xs:complexType>
   </xs:element>
+  <xs:element name="sameRules">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:choice>
+          <xs:element name="SameId" type="ItemId" maxOccurs="unbounded"/>
+          <xs:element name="SameId" type="ItemId" maxOccurs="unbounded"/>
+        </xs:choice>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
 </xs:schema>
 `
 	if err := os.WriteFile(schemaFile, []byte(schema), 0o644); err != nil {
@@ -289,9 +299,14 @@ func TestValidateDuplicateDirectFields(t *testing.T) {
 	}
 	out := string(generated)
 
-	assertContains(t, out, `ItemId []ItemId `+"`"+`xml:"ItemId,omitempty" validate:"min=1,dive"`+"`")
+	assertContains(t, out, `ItemId []ItemId `+"`"+`xml:"ItemId,omitempty" validate:"dive"`+"`")
+	assertNotContains(t, out, `ItemId []ItemId `+"`"+`xml:"ItemId,omitempty" validate:"min=1,dive"`+"`")
 	if got := strings.Count(out, `ItemId []ItemId `+"`"+`xml:"ItemId,omitempty"`); got != 1 {
 		t.Fatalf("expected one direct ItemId field, got %d\n%s", got, out)
+	}
+	assertContains(t, out, `SameId []ItemId `+"`"+`xml:"SameId,omitempty" validate:"min=1,dive"`+"`")
+	if got := strings.Count(out, `SameId []ItemId `+"`"+`xml:"SameId,omitempty"`); got != 1 {
+		t.Fatalf("expected one direct SameId field, got %d\n%s", got, out)
 	}
 }
 

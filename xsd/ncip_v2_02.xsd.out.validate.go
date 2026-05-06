@@ -1289,7 +1289,7 @@ type RequestItem struct {
   MandatedAction *MandatedAction `xml:"MandatedAction,omitempty"`
   UserId *UserId `xml:"UserId,omitempty"`
   AuthenticationInput []AuthenticationInput `xml:"AuthenticationInput,omitempty" validate:"min=1,dive"`
-  ItemId []ItemId `xml:"ItemId,omitempty" validate:"min=1,dive"`
+  ItemId []ItemId `xml:"ItemId,omitempty" validate:"dive"`
   BibliographicId []BibliographicId `xml:"BibliographicId,omitempty" validate:"min=1,dive"`
   RequestId *RequestId `xml:"RequestId,omitempty"`
   RequestType SchemeValuePair `xml:"RequestType"`
