@@ -971,7 +971,8 @@
                     select="(($level != '' and starts-with(., $level) and not(starts-with($tail, $indent)))
                              or ($level = '' and not(starts-with(., $indent))))
                             and normalize-space(.) != '}'"/>
-      <xsl:if test="not($isDirectLine) or not(. = preceding::text())">
+      <xsl:variable name="isStructOpener" select="contains(., ' struct {')"/>
+      <xsl:if test="not($isDirectLine) or $isStructOpener or not(. = preceding::text())">
         <xsl:value-of select="."/>
         <xsl:value-of select="$break"/>
       </xsl:if>
